@@ -1,0 +1,13 @@
+{
+  "name": "f1app",
+  "author": "Esther Palacios Herzog",
+  "license": "GPL",
+  "version": "1.0.0",
+  "description": "An app that allows me to easily view and compare drivers performances.",
+  "bolt": {
+    "workspaces": [
+      "client/*",
+      "server/*"
+    ]
+  }
+}
