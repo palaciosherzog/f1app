@@ -74,10 +74,7 @@ export const getCompData = async (
   }
   const res = await apiClient.post(path, {
     ...session,
-    driver1: laps[0][0],
-    lap1: laps[0][1],
-    driver2: laps[1][0],
-    lap2: laps[1][1],
+    laps: laps,
     args: graphArgs,
   });
   return JSON.stringify(res.data);

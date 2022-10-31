@@ -42,31 +42,15 @@ lap_info_cols = ['Driver', 'Time', 'LapTime', 'LapNumber', 'Stint',
                  'Sector1Time', 'Sector2Time', 'Sector3Time', 'Compound', 'TyreLife', 'LapStartTime', 'PitOutTime', 'PitInTime', 'TrackStatus']
 
 
-def main(func_type, *args):
+def main(func_type, json_args):
+    arg_dict = json.loads(json_args)
+
     if func_type == 'races':
-        if len(args) != 1:
-            sys.stderr.write('Has the wrong number of arguments for comp')
-            return
-        year = args[0]
-        json.dump(get_all_sessions(int(year)), sys.stdout)
+        json.dump(get_all_sessions(int(arg_dict['year'])), sys.stdout)
         return
 
-    if func_type == 'drivers':
-        if len(args) != 3:
-            sys.stderr.write('Has the wrong number of arguments for comp')
-            return
-        year, round, session = args
-        session = fastf1.get_session(
-            int(year), round if not round.isdigit() else int(round), session)
-        session.load(laps=False, telemetry=False,
-                     weather=False, messages=False)
-        json.dump(
-            {"drivers": col_df(session.results[['Abbreviation', 'FullName']])}, sys.stdout)
     if func_type == 'laps':
-        if len(args) != 3:
-            sys.stderr.write('Has the wrong number of arguments for comp')
-            return
-        year, round, session = args
+        year, round, session = arg_dict['year'], arg_dict['round'], arg_dict['session']
         session = fastf1.get_session(
             int(year), round if not round.isdigit() else int(round), session)
         session.load(laps=True, telemetry=False,
@@ -74,16 +58,13 @@ def main(func_type, *args):
         driver_colors = get_best_colors(session.laps.Driver)
         driver_names = {row['Abbreviation']: row['FullName'] for i, row in session.results[['Abbreviation', 'FullName']].iterrows()}
         json.dump(
-            {driver: {"laps": col_df(laps[lap_info_cols]),
+            {driver: {"laps": json.loads(laps[lap_info_cols].to_json(orient='records')),
              "color": driver_colors[driver],
              "fullName": driver_names[driver]} for driver, laps in session.laps.groupby('Driver')}, sys.stdout)
 
     if func_type == 'comp':
-        if len(args) != 9:
-            sys.stderr.write('Has the wrong number of arguments for comp')
-            return
-        info_type, year, round, session, driver1, lap1, driver2, lap2, func_args = args
-        arg_dict = json.loads(func_args)
+        year, round, session, laps, func_args = arg_dict['year'], arg_dict['round'], arg_dict['session'], arg_dict['laps'], arg_dict['args']
+        driver1, driver2, lap1, lap2 = laps[0][0], laps[1][0], laps[0][1], laps[1][1]
         session = fastf1.get_session(
             int(year), round if not round.isdigit() else int(round), session)
         session.load(weather=False, messages=False)
@@ -93,58 +74,31 @@ def main(func_type, *args):
             lap2=get_lap(session, driver2, lap2),
             color1=driver_colors[driver1],
             color2=driver_colors[driver2])
-
-        if info_type == 'both':
-            lapcomp.calculate_speed_comp(x_axis=arg_dict['x_axis'])
-            json.dump({"graph": {
-                "driver1": driver1,
-                "driver2": driver2,
-                "driver1color": lapcomp.color1,
-                "driver2color": lapcomp.color2,
-                "sectorcomp": get_sector_comp(lapcomp),
-                "driver1data": col_df(lapcomp.lap1tel),
-                "driver2data": col_df(lapcomp.lap2tel),
-                "timecomp": col_df(lapcomp.get_graph_comp_info(**arg_dict)[['RelativeDistance', 'Distance', 'Time_diff']])
-            },
-                "map": {
-                "driver1": driver1,
-                "driver2": driver2,
-                "driver1color": lapcomp.color1,
-                "driver2color": lapcomp.color2,
-                "colorscale": lapcomp.get_color_scale(),
-                "mapdata": col_df(lapcomp.speed_comp[['RelativeDistance', 'Distance', 'X', 'Y', 'Z', 'Speed_diff']])
-            }}, sys.stdout)
-            return
-        if info_type == 'graph':
-            json.dump({
-                "driver1": driver1,
-                "driver2": driver2,
-                "driver1color": lapcomp.color1,
-                "driver2color": lapcomp.color2,
-                "driver1lap": json.loads(lapcomp.lap1[lap_info_cols].to_json()),
-                "driver2lap": json.loads(lapcomp.lap2[lap_info_cols].to_json()),
-                "sectorcomp": get_sector_comp(lapcomp),
-                "driver1data": col_df(lapcomp.lap1tel[['RelativeDistance', 'Distance', 'Speed']]),
-                "driver2data": col_df(lapcomp.lap2tel[['RelativeDistance', 'Distance', 'Speed']]),
-                "timecomp": col_df(lapcomp.get_graph_comp_info(**json.loads(func_args))[['Distance', 'Time_diff']])
-            }, sys.stdout)
-            return
-        if info_type == 'map':
-            lapcomp.calculate_speed_comp(**json.loads(func_args))
-            json.dump({
-                "driver1": driver1,
-                "driver2": driver2,
-                "driver1color": lapcomp.color1,
-                "driver2color": lapcomp.color2,
-                "colorscale": lapcomp.get_color_scale(),
-                "mapdata": col_df(lapcomp.speed_comp[['X', 'Y', 'Z', 'Speed_diff']])
-            }, sys.stdout)
-            return
+        lapcomp.calculate_speed_comp(x_axis=func_args['x_axis'])
+        json.dump({"graph": {
+            "driver1": driver1,
+            "driver2": driver2,
+            "driver1color": lapcomp.color1,
+            "driver2color": lapcomp.color2,
+            "sectorcomp": get_sector_comp(lapcomp),
+            "driver1data": col_df(lapcomp.lap1tel),
+            "driver2data": col_df(lapcomp.lap2tel),
+            "timecomp": col_df(lapcomp.get_graph_comp_info(**func_args)[['RelativeDistance', 'Distance', 'Time_diff']])
+        },
+            "map": {
+            "driver1": driver1,
+            "driver2": driver2,
+            "driver1color": lapcomp.color1,
+            "driver2color": lapcomp.color2,
+            "colorscale": lapcomp.get_color_scale(),
+            "mapdata": col_df(lapcomp.speed_comp[['RelativeDistance', 'Distance', 'X', 'Y', 'Z', 'Speed_diff']])
+        }}, sys.stdout)
+        return
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) != 3:
         sys.stderr.write(
-            'Needs to be called with <filename> <function> <...other arguments>')
+            'Needs to be called with <filename> <function> <JSON arguments>')
     else:
-        main(sys.argv[1], *sys.argv[2:])
+        main(sys.argv[1], sys.argv[2])
