@@ -63,3 +63,5 @@ export const getHampel = (arr: number[], k = 7, t0 = 3) => {
   return arr.map((v, i) => Math.abs(v - rollingMedians[i]) <= threshold[i]);
   // returns list, where true indicates a value that is an outlier
 };
+
+// TODO: add function to separate colors, and default colors for each team / person

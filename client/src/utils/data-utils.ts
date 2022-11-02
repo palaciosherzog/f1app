@@ -1,7 +1,7 @@
 import axios from "axios";
-import { bothData, driverData, graphData, lapData, mapData, raceData } from "./test-data";
+import { compData, lapData, raceData } from "./test-data";
 
-const USE_TEST_DATA = false;
+const USE_TEST_DATA = true;
 const apiClient = axios.create({
   baseURL: "http://localhost:8000",
   headers: {
@@ -19,8 +19,6 @@ export type GraphArgs = {
   x_axis: string;
 };
 
-// NEW PLAN FOR DATA: Let's just get all of the information, interpolate all the channels, and then do the calculations ourselves
-
 export const getRaceData = async (year: string | number): Promise<string> => {
   if (USE_TEST_DATA) {
     return new Promise((resolve) => {
@@ -28,16 +26,6 @@ export const getRaceData = async (year: string | number): Promise<string> => {
     });
   }
   const res = await apiClient.post("/races", { year: year });
-  return JSON.stringify(res.data);
-};
-
-export const getDriverData = async (reqData: SessionId): Promise<string> => {
-  if (USE_TEST_DATA) {
-    return new Promise((resolve) => {
-      resolve(driverData);
-    });
-  }
-  const res = await apiClient.post("/drivers", reqData);
   return JSON.stringify(res.data);
 };
 
@@ -51,28 +39,13 @@ export const getLapData = async (reqData: SessionId): Promise<string> => {
   return JSON.stringify(res.data);
 };
 
-export const getCompData = async (
-  path: string,
-  session: SessionId,
-  laps: string[][],
-  graphArgs: GraphArgs
-): Promise<string> => {
+export const getCompData = async (session: SessionId, laps: string[][], graphArgs: GraphArgs): Promise<string> => {
   if (USE_TEST_DATA) {
-    if (path === "/map") {
-      return new Promise((resolve) => {
-        resolve(mapData);
-      });
-    } else if (path === "/graph") {
-      return new Promise((resolve) => {
-        resolve(graphData);
-      });
-    } else if (path === "/both") {
-      return new Promise((resolve) => {
-        resolve(bothData);
-      });
-    }
+    return new Promise((resolve) => {
+      resolve(compData);
+    });
   }
-  const res = await apiClient.post(path, {
+  const res = await apiClient.post("/comp", {
     ...session,
     laps: laps,
     args: graphArgs,

@@ -1,38 +1,71 @@
-import { getClosestIndex, getHampel, getMeanStd, groupBy, mean, rolling } from "./calc-utils";
+import { getHampel, getMeanStd, groupBy, mean, rolling } from "./calc-utils";
 
-export type MapInfo = {
-  driver1: string;
-  driver2: string;
-  driver1color: string;
-  driver2color: string;
-  colorscale: string[];
-  mapdata: {
-    RelativeDistance: number[];
-    X: number[];
-    Y: number[];
-    Z: number[];
-    Speed_diff: number[];
-  };
+type Tel = {
+  Date: number[];
+  SessionTime: number[];
+  DriverAhead: string[];
+  DistanceToDriverAhead: number[];
+  Time: number[];
+  RPM: number[];
+  Speed: number[];
+  nGear: number[];
+  Throttle: number[];
+  Brake: boolean[];
+  DRS: number[];
+  Source: string[];
+  Distance: number[];
+  RelativeDistance: number[];
+  Status: string[];
+  X: number[];
+  Y: number[];
+  Z: number[];
 };
 
-export const getMapCompData = (mapInfo: MapInfo, maxColor: number, rollingK?: number, graphMarker?: number) => {
-  const rollingSpeedDiff = rollingK ? rolling(mapInfo.mapdata.Speed_diff, rollingK, mean) : mapInfo.mapdata.Speed_diff;
+export type LapTel = {
+  driver: string;
+  lapNumber: string;
+  tel: Tel;
+}[];
+
+export const getColDiff = (
+  lapTel: LapTel,
+  col: keyof Tel,
+  lap1 = 0,
+  lap2 = 1,
+  func?: (_a: number, _b: number) => number
+) => {
+  if (!func) {
+    func = (a, b) => a - b;
+  }
+  //@ts-ignore
+  return lapTel[lap1].tel[col].map((v, i) => func(v, lapTel[lap2].tel[col][i]));
+};
+
+export const getMapCompData = (
+  lapTel: LapTel,
+  maxColor: number,
+  rollingK?: number,
+  graphMarker?: number,
+  colors = ["red", "blue"]
+) => {
+  const labels = lapTel.map(({ driver, lapNumber }) => `${driver} - ${lapNumber}`);
+  const speedDiff = getColDiff(lapTel, "Speed");
+  const rollingSpeedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
   let markerInfo = undefined;
   if (graphMarker) {
-    const i = getClosestIndex(mapInfo.mapdata.RelativeDistance, graphMarker);
     markerInfo = {
-      X: [mapInfo.mapdata.X[i]],
-      Y: [mapInfo.mapdata.Y[i]],
-      Z: [mapInfo.mapdata.Z[i]],
+      X: [lapTel[0].tel.X[graphMarker]],
+      Y: [lapTel[0].tel.Y[graphMarker]],
+      Z: [lapTel[0].tel.Z[graphMarker]],
     };
   }
   return {
     data: [
       {
-        x: mapInfo.mapdata.X,
-        y: mapInfo.mapdata.Y,
-        z: mapInfo.mapdata.Z,
-        text: mapInfo.mapdata.RelativeDistance,
+        x: lapTel[0].tel.X,
+        y: lapTel[0].tel.Y,
+        z: lapTel[0].tel.Z,
+        text: lapTel[0].tel.RelativeDistance,
         type: "scatter3d",
         mode: "line",
         marker: { opacity: 0.001 },
@@ -43,15 +76,15 @@ export const getMapCompData = (mapInfo: MapInfo, maxColor: number, rollingK?: nu
           cmid: 0,
           cmin: -maxColor,
           cmax: maxColor,
-          colorscale: mapInfo.colorscale.map((color, index) => [
-            (index / (mapInfo.colorscale.length - 1)).toString(),
-            color,
-          ]),
+          // colorscale: mapInfo.colorscale.map((color, index) => [
+          //   (index / (mapInfo.colorscale.length - 1)).toString(),
+          //   color,
+          // ]),
           showscale: true,
           colorbar: {
             tickfont: { color: "#fff" },
             title: {
-              text: `${mapInfo.driver2} faster <-- | Speed Difference (km/h) | --> ${mapInfo.driver1} faster`,
+              text: `${labels[1]} faster <-- | Speed Difference (km/h) | --> ${labels[1]} faster`,
               side: "right",
               font: { color: "#fff" },
             },
@@ -93,43 +126,6 @@ export const getMapCompData = (mapInfo: MapInfo, maxColor: number, rollingK?: nu
   };
 };
 
-type lapTel = {
-  Date: number[];
-  SessionTime: number[];
-  DriverAhead: string[];
-  DistanceToDriverAhead: number[];
-  Time: number[];
-  RPM: number[];
-  Speed: number[];
-  nGear: number[];
-  Throttle: number[];
-  Brake: boolean[];
-  DRS: number[];
-  Source: string[];
-  Distance: number[];
-  RelativeDistance: number[];
-  Status: string[];
-  X: number[];
-  Y: number[];
-  Z: number[];
-};
-export type GraphInfo = {
-  driver1: string;
-  driver2: string;
-  driver1color: string;
-  driver2color: string;
-  sectorcomp: {
-    dists: number[];
-    timeDiffs: number[];
-  };
-  driver1data: lapTel;
-  driver2data: lapTel;
-  timecomp: {
-    Distance: number[];
-    Time_diff: number[];
-  };
-};
-
 const yAxisLabels: { [_name: string]: string } = {
   Speed: "Speed (km/h)",
   Throttle: "Throttle",
@@ -154,26 +150,25 @@ export const getGraphHeight = (colNames: string[]) => {
 };
 
 export const getGraphCompData = (
-  graphInfo: GraphInfo,
+  lapTel: LapTel,
   maxTDiff: number,
   rollingK?: number,
   graphMarker?: number,
   otherys?: boolean | string[]
 ) => {
-  let timeDiffs = graphInfo.timecomp.Time_diff;
+  const labels = lapTel.map(({ driver, lapNumber }) => `${driver} - ${lapNumber}`);
+  let timeDiffs = getColDiff(lapTel, "Time", undefined, undefined, (a, b) => (a - b) / 1000);
   if (graphMarker) {
-    const lastDistance = graphInfo.timecomp.Distance[graphInfo.timecomp.Distance.length - 1];
-    const closestInd = getClosestIndex(graphInfo.timecomp.Distance, graphMarker * lastDistance);
-    const diffTo0 = graphInfo.timecomp.Time_diff[closestInd];
+    const diffTo0 = timeDiffs[graphMarker];
     timeDiffs = timeDiffs.map((td) => td - diffTo0);
   }
   if (rollingK) {
     timeDiffs = rolling(timeDiffs, rollingK, mean);
   }
 
-  const driverNames = [graphInfo.driver1, graphInfo.driver2];
-  const driverColors = [graphInfo.driver1color, graphInfo.driver2color];
-  const driverData = [graphInfo.driver1data, graphInfo.driver2data];
+  const driverNames = ["PER", "VER"];
+  const driverColors = ["#f00", "#00f"];
+  const driverData = [lapTel[0].tel, lapTel[1].tel];
   let columnsToPlot = ["Speed"];
   if (otherys === true) {
     columnsToPlot = [...columnsToPlot, "Throttle", "Brake", "DRS", "nGear"];
@@ -214,7 +209,7 @@ export const getGraphCompData = (
     data: [
       ...graphData,
       {
-        x: graphInfo.timecomp.Distance,
+        x: lapTel[0].tel.Distance,
         y: timeDiffs,
         type: "scatter",
         mode: "lines",
@@ -249,7 +244,7 @@ export const getGraphCompData = (
       ...(separateTime < 0
         ? {
             [`yaxis${columnsToPlot.length + 1}`]: {
-              title: `${graphInfo.driver2} ahead <-- | Time Difference (s) | --> ${graphInfo.driver1} ahead`,
+              text: `${labels[1]} ahead <-- | Time Difference (s) | --> ${labels[1]} ahead`,
               overlaying: "y1",
               side: "right",
               zerolinecolor: "#999",
@@ -263,21 +258,22 @@ export const getGraphCompData = (
         orientation: "h",
       },
       hovermode: "x",
-      shapes: graphInfo?.sectorcomp?.dists
-        ? [
-            ...graphInfo.sectorcomp.dists,
-            ...(graphMarker ? [graphMarker * graphInfo.driver1data.Distance.slice(-1)[0]] : []),
-          ].map((d) => ({
-            line: { color: "#777" },
-            type: "line",
-            xref: "x",
-            yref: "paper",
-            x0: d,
-            y0: 0,
-            x1: d,
-            y1: 1,
-          }))
-        : [],
+      // TODO: add support for sectors
+      // shapes: graphInfo?.sectorcomp?.dists
+      //   ? [
+      //       ...graphInfo.sectorcomp.dists,
+      //       ...(graphMarker ? [graphMarker * graphInfo.driver1data.Distance.slice(-1)[0]] : []),
+      //     ].map((d) => ({
+      //       line: { color: "#777" },
+      //       type: "line",
+      //       xref: "x",
+      //       yref: "paper",
+      //       x0: d,
+      //       y0: 0,
+      //       x1: d,
+      //       y1: 1,
+      //     }))
+      //   : [],
       margin: { l: 60, r: 60, b: 60, t: 60 },
       autosize: true,
       ...(otherys
@@ -291,111 +287,6 @@ export const getGraphCompData = (
           }
         : {}),
       title: "VER vs SAI Fastest Lap Comparison",
-    },
-    useResizeHandler: true,
-    style: { width: "100%", height: "100%" },
-  };
-};
-
-export const getMapCompData2 = (mapInfo: GraphInfo, maxColor: number, rollingK?: number, graphMarker?: number) => {
-  //const rollingSpeedDiff = rollingK ? rolling(mapInfo.mapdata.Speed_diff, rollingK, mean) : mapInfo.mapdata.Speed_diff;
-  let markerInfo = undefined;
-  if (graphMarker) {
-    const i = getClosestIndex(mapInfo.driver1data.RelativeDistance, graphMarker);
-    markerInfo = {
-      X: [mapInfo.driver1data.X[i]],
-      Y: [mapInfo.driver1data.Y[i]],
-      Z: [mapInfo.driver1data.Z[i]],
-    };
-  }
-  return {
-    data: [
-      {
-        x: mapInfo.driver1data.X,
-        y: mapInfo.driver1data.Y,
-        z: mapInfo.driver1data.Z,
-        text: mapInfo.driver1data.RelativeDistance,
-        type: "scatter3d",
-        mode: "line",
-        marker: { opacity: 0.001 },
-        line: {
-          color: "#f00",
-          width: 10,
-          opacity: 0.8,
-          // cmid: 0,
-          // cmin: -maxColor,
-          // cmax: maxColor,
-          // colorscale: "Viridis",
-          // showscale: true,
-          // colorbar: {
-          //   tickfont: { color: "#fff" },
-          //   title: {
-          //     text: `${mapInfo.driver2} faster <-- | Speed Difference (km/h) | --> ${mapInfo.driver1} faster`,
-          //     side: "right",
-          //     font: { color: "#fff" },
-          //   },
-          // },
-        },
-        hoverinfo: "text",
-        name: mapInfo.driver1,
-      },
-      {
-        x: mapInfo.driver2data.X,
-        y: mapInfo.driver2data.Y,
-        z: mapInfo.driver2data.Z,
-        text: mapInfo.driver2data.RelativeDistance,
-        type: "scatter3d",
-        mode: "line",
-        marker: { opacity: 0.001 },
-        line: {
-          color: "#00f",
-          width: 10,
-          opacity: 0.8,
-          // cmid: 0,
-          // cmin: -maxColor,
-          // cmax: maxColor,
-          // colorscale: "Viridis",
-          // showscale: true,
-          // colorbar: {
-          //   tickfont: { color: "#fff" },
-          //   title: {
-          //     text: `${mapInfo.driver2} faster <-- | Speed Difference (km/h) | --> ${mapInfo.driver1} faster`,
-          //     side: "right",
-          //     font: { color: "#fff" },
-          //   },
-          // },
-        },
-        hoverinfo: "text",
-        name: mapInfo.driver2,
-      },
-      ...(markerInfo
-        ? [
-            {
-              x: markerInfo.X,
-              y: markerInfo.Y,
-              z: markerInfo.Z,
-              type: "scatter3d",
-              mode: "scatter",
-              marker: { size: 8, color: "#000" },
-              hoverinfo: "none",
-            },
-          ]
-        : [{}]),
-    ],
-    layout: {
-      paper_bgcolor: "#292625",
-      plot_bgcolor: "#1e1c1b",
-      scene: {
-        camera: {
-          eye: { x: 0.5, y: 0.5, z: 7 },
-          up: { x: 0, y: 1, z: 0 },
-        },
-        aspectmode: "data",
-        aspectratio: { xaxis: 1, yaxis: 1, zaxis: 1 },
-      },
-      margin: { l: 0, r: 0, b: 0, t: 0 },
-      autosize: true,
-      //showlegend: false,
     },
     useResizeHandler: true,
     style: { width: "100%", height: "100%" },
@@ -452,7 +343,7 @@ export type DriverLaps = {
   };
 };
 
-// TODO: 1. add options to customize these filters (hampel & stddev mostly)
+// TODO: add options to customize these filters (hampel & stddev mostly)
 export type FilterOptions = {
   lapRange?: [number, number];
   boxLaps?: boolean;

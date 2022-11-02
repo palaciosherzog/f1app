@@ -56,43 +56,35 @@ def main(func_type, json_args):
         session.load(laps=True, telemetry=False,
                      weather=False, messages=False)
         driver_colors = get_best_colors(session.laps.Driver)
-        driver_names = {row['Abbreviation']: row['FullName'] for i, row in session.results[['Abbreviation', 'FullName']].iterrows()}
+        driver_names = {row['Abbreviation']: row['FullName']
+                        for i, row in session.results[['Abbreviation', 'FullName']].iterrows()}
         json.dump(
-            {driver: {"laps": json.loads(laps[lap_info_cols].to_json(orient='records')),
+            {driver: {"laps": col_df(laps[lap_info_cols]),
              "color": driver_colors[driver],
-             "fullName": driver_names[driver]} for driver, laps in session.laps.groupby('Driver')}, sys.stdout)
+                      "fullName": driver_names[driver]} for driver, laps in session.laps.groupby('Driver')}, sys.stdout)
 
     if func_type == 'comp':
-        year, round, session, laps, func_args = arg_dict['year'], arg_dict['round'], arg_dict['session'], arg_dict['laps'], arg_dict['args']
-        driver1, driver2, lap1, lap2 = laps[0][0], laps[1][0], laps[0][1], laps[1][1]
+        year, round, session, laps, func_args = arg_dict['year'], arg_dict[
+            'round'], arg_dict['session'], arg_dict['laps'], arg_dict['args']
+        x_ax = func_args['x_axis']
         session = fastf1.get_session(
             int(year), round if not round.isdigit() else int(round), session)
         session.load(weather=False, messages=False)
-        driver_colors = get_best_colors([driver1, driver2])
-        lapcomp = LapComparison(
-            lap1=get_lap(session, driver1, lap1),
-            lap2=get_lap(session, driver2, lap2),
-            color1=driver_colors[driver1],
-            color2=driver_colors[driver2])
-        lapcomp.calculate_speed_comp(x_axis=func_args['x_axis'])
-        json.dump({"graph": {
-            "driver1": driver1,
-            "driver2": driver2,
-            "driver1color": lapcomp.color1,
-            "driver2color": lapcomp.color2,
-            "sectorcomp": get_sector_comp(lapcomp),
-            "driver1data": col_df(lapcomp.lap1tel),
-            "driver2data": col_df(lapcomp.lap2tel),
-            "timecomp": col_df(lapcomp.get_graph_comp_info(**func_args)[['RelativeDistance', 'Distance', 'Time_diff']])
-        },
-            "map": {
-            "driver1": driver1,
-            "driver2": driver2,
-            "driver1color": lapcomp.color1,
-            "driver2color": lapcomp.color2,
-            "colorscale": lapcomp.get_color_scale(),
-            "mapdata": col_df(lapcomp.speed_comp[['RelativeDistance', 'Distance', 'X', 'Y', 'Z', 'Speed_diff']])
-        }}, sys.stdout)
+        driver_laps = [get_lap(session, l[0], l[1]) for l in laps]
+        driver_tel = [lap.get_telemetry() for lap in driver_laps]
+        if len(driver_tel) == 2:
+            resampled_driver_tel = resample_2_by_dist(
+                driver_tel[0], driver_tel[1], x_axis=x_ax)
+        else:
+            resampled_driver_tel = resample_all_by_dist(
+                driver_tel, x_axis=x_ax)
+        json.dump({"laptel": [
+            {
+                "driver": lap[0],
+                "lapNumber": lap[1],
+                "tel": col_df(resampled_driver_tel[i])
+            }
+            for i, lap in enumerate(laps)]}, sys.stdout)
         return
 
 

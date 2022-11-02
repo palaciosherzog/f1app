@@ -23,25 +23,21 @@ const app: Express = express();
 app.use(express.json());
 app.use(cors());
 
-// CONSIDERATION: could make these all into 'GET' functions, it would make more sense, but for now, this'll do
+// TODO: could make these all into 'GET' functions, it would make more sense, but for now, this'll do
 
 app.post("/races", (req: Request, res: Response) => {
   getScriptOutput(["../f1analysis/getinfo.py", "races", JSON.stringify(req.body)], logger, (data) => res.send(data));
-});
-
-app.post("/drivers", (req: Request, res: Response) => {
-  getScriptOutput(["..f1analysis/getinfo.py", "drivers", JSON.stringify(req.body)], logger, (data) => res.send(data));
 });
 
 app.post("/laps", (req: Request, res: Response) => {
   getScriptOutput(["../f1analysis/getinfo.py", "laps", JSON.stringify(req.body)], logger, (data) => res.send(data));
 });
 
-app.post("/both", (req: Request, res: Response) => {
+app.post("/comp", (req: Request, res: Response) => {
   getScriptOutput(["../f1analysis/getinfo.py", "comp", JSON.stringify(req.body)], logger, (data) => res.send(data));
 });
 
-app.get("/", (req: Request, res: Response) => {
+app.get("/", (_req: Request, res: Response) => {
   const args = ["arg1", "arg2"];
 
   const sendData = (data: String) => {

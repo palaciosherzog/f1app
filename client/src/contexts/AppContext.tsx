@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { getCompData, getLapData, getRaceData, GraphArgs, SessionId } from "../utils/data-utils";
-import { DriverLaps, GraphInfo, MapInfo } from "../utils/graph-utils";
+import { DriverLaps, LapTel } from "../utils/graph-utils";
 
 export type MarkerInfo = number;
 
@@ -18,8 +18,7 @@ export type AppContextType = {
   state: {
     yearInfo: YearInfo | undefined;
     lapInfo: DriverLaps | undefined;
-    graphInfo: GraphInfo | undefined;
-    mapInfo: MapInfo | undefined;
+    graphInfo: LapTel | undefined;
     sessionInfo: SessionId;
     compLaps: string[][];
     compLaps2: string[][];
@@ -51,8 +50,7 @@ export const AppContext = React.createContext<AppContextType>({} as AppContextTy
 export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const [yearInfo, setYearInfo] = useState<YearInfo | undefined>();
   const [lapInfo, setLapInfo] = useState<DriverLaps | undefined>();
-  const [graphInfo, setGraphInfo] = useState<GraphInfo | undefined>();
-  const [mapInfo, setMapInfo] = useState<MapInfo | undefined>();
+  const [graphInfo, setGraphInfo] = useState<LapTel | undefined>();
   const [sessionInfo, setSessionInfo] = useState<SessionId>({ year: "", session: "", round: "" });
   const [compLaps, setCompLaps] = useState<string[][]>([]);
   const [compLaps2, setCompLaps2] = useState<string[][]>([]);
@@ -108,10 +106,9 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const getGraphsInfo = async (graphArgs: GraphArgs) => {
     setGraphsLoading(true);
     if (sessionInfo.year && sessionInfo.round && sessionInfo.session && compLaps.length >= 2) {
-      const compInfo = await getCompData(`/both`, sessionInfo, compLaps, graphArgs);
+      const compInfo = await getCompData(sessionInfo, compLaps, graphArgs);
       const res = JSON.parse(compInfo);
-      setMapInfo(res.map);
-      setGraphInfo(res.graph);
+      setGraphInfo(res.laptel);
     }
     setGraphsLoading(false);
   };
@@ -121,7 +118,6 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
       yearInfo,
       lapInfo,
       graphInfo,
-      mapInfo,
       sessionInfo,
       compLaps,
       compLaps2,

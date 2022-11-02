@@ -3,7 +3,7 @@ import React, { useContext, useState } from "react";
 import { Button, Select, Slider, Switch } from "antd";
 import Plot from "react-plotly.js";
 import { AppContext } from "../contexts/AppContext";
-import { getGraphCompData, getGraphHeight } from "../utils/graph-utils";
+import { getColDiff, getGraphCompData, getGraphHeight } from "../utils/graph-utils";
 import Div from "./Div";
 import GraphOptionContainer from "./GraphOptionContainer";
 
@@ -26,17 +26,11 @@ const GraphView: React.FC<{
 
   React.useEffect(() => {
     if (graphInfo) {
-      const absMax = Math.ceil(Math.max(...graphInfo.timecomp.Time_diff.map((a) => Math.abs(a)), 1) * 10) / 10;
+      const time_diff = getColDiff(graphInfo, "Time");
+      const absMax = Math.ceil(Math.max(...time_diff.map((a) => Math.abs(a)), 1000) / 100) / 10;
       setMmaxTDiff(absMax);
     }
   }, [graphInfo]);
-
-  const getDistance = (eventData: any) => {
-    if (graphInfo) {
-      const point = eventData.points.filter((point: any) => point.curveNumber === 0)[0];
-      return graphInfo.driver1data.RelativeDistance[point.pointNumber];
-    }
-  };
 
   const graphHeight = `${getGraphHeight(["Speed", ...otherYs])}vw`;
 
@@ -56,7 +50,7 @@ const GraphView: React.FC<{
               otherYs
             )}
             onHover={(eventData: any) => onHover(eventData)}
-            onClick={(eventData: any) => setGraphMarker(getDistance(eventData))}
+            onClick={(eventData: any) => setGraphMarker(eventData.points[0].pointNumber)}
             // NOTE: currently, there's not an easy way to link the graph hover to the map hover
           />
         )}
@@ -96,6 +90,8 @@ const GraphView: React.FC<{
         <GraphOptionContainer>
           <Button onClick={() => setGraphMarker()}>Clear Marker</Button>
         </GraphOptionContainer>
+        {/* TODO: add a color selector for both graphs */}
+        {/* TODO: add a way to add custom labels for the title & laps */}
       </Div>
     </Div>
   );

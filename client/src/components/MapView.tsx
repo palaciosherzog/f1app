@@ -3,7 +3,7 @@ import React, { useContext, useState } from "react";
 import { Slider, Switch } from "antd";
 import Plot from "react-plotly.js";
 import { AppContext } from "../contexts/AppContext";
-import { getMapCompData } from "../utils/graph-utils";
+import { getColDiff, getMapCompData } from "../utils/graph-utils";
 import Div from "./Div";
 import GraphOptionContainer from "./GraphOptionContainer";
 
@@ -11,7 +11,7 @@ type MapViewProps = { mapRef: React.MutableRefObject<HTMLElement | undefined>; o
 
 const MapView: React.FC<MapViewProps> = ({ mapRef, onMapHover }) => {
   const {
-    state: { mapInfo, graphInfo, graphMarker },
+    state: { graphInfo, graphMarker },
     actions: { setGraphMarker },
   } = useContext(AppContext);
 
@@ -21,25 +21,24 @@ const MapView: React.FC<MapViewProps> = ({ mapRef, onMapHover }) => {
   const [rollingMap, setRollingMap] = useState<number>(3);
 
   React.useEffect(() => {
-    if (mapInfo) {
-      const absMax = Math.ceil(Math.max(...mapInfo.mapdata.Speed_diff.map((a) => Math.abs(a))));
+    if (graphInfo) {
+      const speedDiff = getColDiff(graphInfo, "Speed");
+      const absMax = Math.ceil(Math.max(...speedDiff.map((a) => Math.abs(a))));
       setMmaxColor(absMax);
     }
-  }, [mapInfo]);
+  }, [graphInfo]);
 
   return (
     <Div flexDirection="column" flexWrap="wrap" width="35vw" margin="25px">
       <Div width="100%" height="30vw">
-        {mapInfo && maxColor && (
-          // TODO: 1. option to plot time_diff based on x y ?
+        {graphInfo && maxColor && (
+          // TODO: option to plot time_diff based on x y ?
           <Plot
             ref={mapRef}
             divId="mapPlot"
-            {...getMapCompData(mapInfo, maxColor, showRollingMap ? rollingMap : undefined, graphMarker)}
+            {...getMapCompData(graphInfo, maxColor, showRollingMap ? rollingMap : undefined, graphMarker)}
             onHover={(eventData: any) => onMapHover(eventData)}
-            // onClick={(eventData: any) =>
-            //   setGraphMarker(mapInfo.mapdata.RelativeDistance[eventData.points[0].pointNumber])
-            // }
+            onClick={(eventData: any) => setGraphMarker(eventData.points[0].pointNumber)}
           />
         )}
       </Div>

@@ -19,9 +19,6 @@ const DriverSelector = () => {
     actions: { setCompLaps, setCompLaps2, getGraphsInfo },
   } = useContext(AppContext);
 
-  console.log(compLaps);
-  console.log(compLaps2);
-
   const [useAcc, setUseAcc] = React.useState<boolean>(false);
   const [xAxis, setXAxis] = React.useState<string>("Distance");
 

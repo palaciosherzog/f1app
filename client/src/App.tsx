@@ -15,19 +15,18 @@ import { AppContext } from "./contexts/AppContext";
 // TODO: should we hide all options under dropdowns and stuff???
 const App = () => {
   const {
-    state: { graphInfo, mapInfo, lapsLoading, graphsLoading },
+    state: { graphInfo, lapsLoading, graphsLoading },
   } = useContext(AppContext);
 
   const graphPlot = React.useRef<HTMLElement>();
   const mapPlot = React.useRef<HTMLElement>();
 
   const onMapHover = (eventdata: any) => {
-    if (graphInfo && mapInfo) {
-      const lastDistance = graphInfo.timecomp.Distance[graphInfo.timecomp.Distance.length - 1];
-      const relDist = mapInfo.mapdata.RelativeDistance[eventdata.points[0].pointNumber];
+    if (graphInfo) {
+      const relDist = graphInfo[0].tel.Distance[eventdata.points[0].pointNumber];
       //@ts-ignore
       Plotly.Fx.hover("graphPlot", {
-        xval: relDist * lastDistance,
+        xval: relDist,
       });
     }
   };
