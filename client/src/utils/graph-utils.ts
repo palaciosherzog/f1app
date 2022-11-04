@@ -1,3 +1,4 @@
+import { LapLabels } from "../contexts/AppContext";
 import { getHampel, getMeanStd, groupBy, mean, rolling } from "./calc-utils";
 
 type Tel = {
@@ -43,12 +44,11 @@ export const getColDiff = (
 
 export const getMapCompData = (
   lapTel: LapTel,
+  graphInfo: LapLabels,
   maxColor: number,
   rollingK?: number,
-  graphMarker?: number,
-  colors = ["red", "blue"]
+  graphMarker?: number
 ) => {
-  const labels = lapTel.map(({ driver, lapNumber }) => `${driver} - ${lapNumber}`);
   const speedDiff = getColDiff(lapTel, "Speed");
   const rollingSpeedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
   let markerInfo = undefined;
@@ -76,15 +76,16 @@ export const getMapCompData = (
           cmid: 0,
           cmin: -maxColor,
           cmax: maxColor,
-          // colorscale: mapInfo.colorscale.map((color, index) => [
-          //   (index / (mapInfo.colorscale.length - 1)).toString(),
-          //   color,
-          // ]),
+          colorscale: [
+            ["0", graphInfo.colors[1]],
+            ["0.5", "#fff"],
+            ["1", graphInfo.colors[0]],
+          ],
           showscale: true,
           colorbar: {
             tickfont: { color: "#fff" },
             title: {
-              text: `${labels[1]} faster <-- | Speed Difference (km/h) | --> ${labels[1]} faster`,
+              text: `${graphInfo.labels[1]} faster <-- | Speed Diff (km/h) | --> ${graphInfo.labels[0]} faster`,
               side: "right",
               font: { color: "#fff" },
             },
@@ -151,12 +152,12 @@ export const getGraphHeight = (colNames: string[]) => {
 
 export const getGraphCompData = (
   lapTel: LapTel,
+  graphInfo: LapLabels,
   maxTDiff: number,
   rollingK?: number,
   graphMarker?: number,
   otherys?: boolean | string[]
 ) => {
-  const labels = lapTel.map(({ driver, lapNumber }) => `${driver} - ${lapNumber}`);
   let timeDiffs = getColDiff(lapTel, "Time", undefined, undefined, (a, b) => (a - b) / 1000);
   if (graphMarker) {
     const diffTo0 = timeDiffs[graphMarker];
@@ -166,8 +167,6 @@ export const getGraphCompData = (
     timeDiffs = rolling(timeDiffs, rollingK, mean);
   }
 
-  const driverNames = ["PER", "VER"];
-  const driverColors = ["#f00", "#00f"];
   const driverData = [lapTel[0].tel, lapTel[1].tel];
   let columnsToPlot = ["Speed"];
   if (otherys === true) {
@@ -197,8 +196,8 @@ export const getGraphCompData = (
               yaxis: `y${i + 1}`,
               type: "scatter",
               mode: "lines",
-              line: { color: driverColors[j] },
-              name: driverNames[j],
+              line: { color: graphInfo.colors[j] },
+              name: graphInfo.labels[j],
               hovertemplate: "%{y:.3f}",
             }
           : {}
@@ -244,7 +243,7 @@ export const getGraphCompData = (
       ...(separateTime < 0
         ? {
             [`yaxis${columnsToPlot.length + 1}`]: {
-              text: `${labels[1]} ahead <-- | Time Difference (s) | --> ${labels[1]} ahead`,
+              text: `${graphInfo.labels[1]} ahead <-- | Time Difference (s) | --> ${graphInfo.labels[0]} ahead`,
               overlaying: "y1",
               side: "right",
               zerolinecolor: "#999",
@@ -286,7 +285,7 @@ export const getGraphCompData = (
             },
           }
         : {}),
-      title: "VER vs SAI Fastest Lap Comparison",
+      title: graphInfo.title,
     },
     useResizeHandler: true,
     style: { width: "100%", height: "100%" },

@@ -11,7 +11,7 @@ type MapViewProps = { mapRef: React.MutableRefObject<HTMLElement | undefined>; o
 
 const MapView: React.FC<MapViewProps> = ({ mapRef, onMapHover }) => {
   const {
-    state: { graphInfo, graphMarker },
+    state: { graphInfo, graphMarker, graphLabels },
     actions: { setGraphMarker },
   } = useContext(AppContext);
 
@@ -36,7 +36,7 @@ const MapView: React.FC<MapViewProps> = ({ mapRef, onMapHover }) => {
           <Plot
             ref={mapRef}
             divId="mapPlot"
-            {...getMapCompData(graphInfo, maxColor, showRollingMap ? rollingMap : undefined, graphMarker)}
+            {...getMapCompData(graphInfo, graphLabels, maxColor, showRollingMap ? rollingMap : undefined, graphMarker)}
             onHover={(eventData: any) => onMapHover(eventData)}
             onClick={(eventData: any) => setGraphMarker(eventData.points[0].pointNumber)}
           />

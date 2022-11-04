@@ -1,9 +1,10 @@
 import React, { useContext, useState } from "react";
 
-import { Button, Select, Slider, Switch } from "antd";
+import { Button, Input, Select, Slider, Switch } from "antd";
 import Plot from "react-plotly.js";
 import { AppContext } from "../contexts/AppContext";
 import { getColDiff, getGraphCompData, getGraphHeight } from "../utils/graph-utils";
+import ColorSelector from "./ColorSelector";
 import Div from "./Div";
 import GraphOptionContainer from "./GraphOptionContainer";
 
@@ -14,8 +15,8 @@ const GraphView: React.FC<{
   onHover: (_eventData: any) => void;
 }> = ({ graphRef, onHover }) => {
   const {
-    state: { graphInfo, graphMarker },
-    actions: { setGraphMarker },
+    state: { graphInfo, graphMarker, graphLabels },
+    actions: { setGraphMarker, setGraphLabels },
   } = useContext(AppContext);
 
   const [showRollingGraph, setShowRollingGraph] = useState<boolean>(false);
@@ -44,6 +45,7 @@ const GraphView: React.FC<{
             divId="graphPlot"
             {...getGraphCompData(
               graphInfo,
+              graphLabels,
               maxTDiff,
               showRollingGraph ? rollingGraph : undefined,
               graphMarker,
@@ -55,7 +57,7 @@ const GraphView: React.FC<{
           />
         )}
       </Div>
-      <Div display="flex" flexDirection="row" justifyContent="center" height="10vw">
+      <Div display="flex" flexDirection="row" justifyContent="center" height="10vw" flexWrap="wrap">
         <GraphOptionContainer>
           <p>
             Current time range: -{maxTDiff} to {maxTDiff}
@@ -90,8 +92,44 @@ const GraphView: React.FC<{
         <GraphOptionContainer>
           <Button onClick={() => setGraphMarker()}>Clear Marker</Button>
         </GraphOptionContainer>
-        {/* TODO: add a color selector for both graphs */}
-        {/* TODO: add a way to add custom labels for the title & laps */}
+        {graphInfo && (
+          <>
+            <GraphOptionContainer>
+              <Input
+                placeholder="Title of Graph"
+                value={graphLabels.title}
+                onChange={(e) => setGraphLabels({ ...graphLabels, title: e.target.value })}
+              />
+            </GraphOptionContainer>
+            <GraphOptionContainer>
+              {/* TODO: add alert when two colors are too similar */}
+              <ColorSelector
+                value={graphLabels.colors[0]}
+                setValue={(v) => setGraphLabels({ ...graphLabels, colors: { ...graphLabels.colors, 0: v } })}
+              />
+              <Input
+                placeholder="Label for Line 1"
+                value={graphLabels.labels[0]}
+                onChange={(e) =>
+                  setGraphLabels({ ...graphLabels, labels: { ...graphLabels.labels, 0: e.target.value } })
+                }
+              />
+            </GraphOptionContainer>
+            <GraphOptionContainer>
+              <ColorSelector
+                value={graphLabels.colors[1]}
+                setValue={(v) => setGraphLabels({ ...graphLabels, colors: { ...graphLabels.colors, 1: v } })}
+              />
+              <Input
+                placeholder="Label for Line 1"
+                value={graphLabels.labels[1]}
+                onChange={(e) =>
+                  setGraphLabels({ ...graphLabels, labels: { ...graphLabels.labels, 1: e.target.value } })
+                }
+              />
+            </GraphOptionContainer>
+          </>
+        )}
       </Div>
     </Div>
   );
