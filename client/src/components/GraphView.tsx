@@ -1,8 +1,9 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 
 import { Button, Input, Select, Slider, Switch } from "antd";
+import { cloneDeep } from "lodash";
 import Plot from "react-plotly.js";
-import { AppContext } from "../contexts/AppContext";
+import { AppContext, LapLabels } from "../contexts/AppContext";
 import { getColDiff, getGraphCompData, getGraphHeight } from "../utils/graph-utils";
 import ColorSelector from "./ColorSelector";
 import Div from "./Div";
@@ -24,14 +25,19 @@ const GraphView: React.FC<{
   const [maxTDiff, setMaxTDiff] = useState<number>(1.0);
   const [mmaxTDiff, setMmaxTDiff] = useState<number>();
   const [otherYs, setOtherYs] = useState<string[]>([]);
+  const [localGraphLabels, setLocalGraphLabels] = useState<LapLabels>({ title: "", colors: {}, labels: {} });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (graphInfo) {
       const time_diff = getColDiff(graphInfo, "Time");
       const absMax = Math.ceil(Math.max(...time_diff.map((a) => Math.abs(a)), 1000) / 100) / 10;
       setMmaxTDiff(absMax);
     }
   }, [graphInfo]);
+
+  useEffect(() => {
+    setLocalGraphLabels(cloneDeep(graphLabels));
+  }, [graphLabels]);
 
   const graphHeight = `${getGraphHeight(["Speed", ...otherYs])}vw`;
 
@@ -92,44 +98,60 @@ const GraphView: React.FC<{
         <GraphOptionContainer>
           <Button onClick={() => setGraphMarker()}>Clear Marker</Button>
         </GraphOptionContainer>
-        {graphInfo && (
-          <>
-            <GraphOptionContainer>
-              <Input
-                placeholder="Title of Graph"
-                value={graphLabels.title}
-                onChange={(e) => setGraphLabels({ ...graphLabels, title: e.target.value })}
-              />
-            </GraphOptionContainer>
-            <GraphOptionContainer>
-              {/* TODO: add alert when two colors are too similar */}
-              <ColorSelector
-                value={graphLabels.colors[0]}
-                setValue={(v) => setGraphLabels({ ...graphLabels, colors: { ...graphLabels.colors, 0: v } })}
-              />
-              <Input
-                placeholder="Label for Line 1"
-                value={graphLabels.labels[0]}
-                onChange={(e) =>
-                  setGraphLabels({ ...graphLabels, labels: { ...graphLabels.labels, 0: e.target.value } })
-                }
-              />
-            </GraphOptionContainer>
-            <GraphOptionContainer>
-              <ColorSelector
-                value={graphLabels.colors[1]}
-                setValue={(v) => setGraphLabels({ ...graphLabels, colors: { ...graphLabels.colors, 1: v } })}
-              />
-              <Input
-                placeholder="Label for Line 1"
-                value={graphLabels.labels[1]}
-                onChange={(e) =>
-                  setGraphLabels({ ...graphLabels, labels: { ...graphLabels.labels, 1: e.target.value } })
-                }
-              />
-            </GraphOptionContainer>
-          </>
-        )}
+        {
+          // TODO: we probably wanna replace this with a form
+          graphInfo && (
+            <>
+              <GraphOptionContainer>
+                <Input
+                  placeholder="Title of Graph"
+                  value={localGraphLabels.title}
+                  onChange={(e) => setLocalGraphLabels({ ...localGraphLabels, title: e.target.value })}
+                />
+              </GraphOptionContainer>
+              <GraphOptionContainer>
+                {/* TODO: add alert when two colors are too similar */}
+                <ColorSelector
+                  value={localGraphLabels.colors[0]}
+                  setValue={(v) =>
+                    setLocalGraphLabels({ ...localGraphLabels, colors: { ...localGraphLabels.colors, 0: v } })
+                  }
+                />
+                <Input
+                  placeholder="Label for Line 1"
+                  value={localGraphLabels.labels[0]}
+                  onChange={(e) =>
+                    setLocalGraphLabels({
+                      ...localGraphLabels,
+                      labels: { ...localGraphLabels.labels, 0: e.target.value },
+                    })
+                  }
+                />
+              </GraphOptionContainer>
+              <GraphOptionContainer>
+                <ColorSelector
+                  value={localGraphLabels.colors[1]}
+                  setValue={(v) =>
+                    setLocalGraphLabels({ ...localGraphLabels, colors: { ...localGraphLabels.colors, 1: v } })
+                  }
+                />
+                <Input
+                  placeholder="Label for Line 1"
+                  value={localGraphLabels.labels[1]}
+                  onChange={(e) =>
+                    setLocalGraphLabels({
+                      ...localGraphLabels,
+                      labels: { ...localGraphLabels.labels, 1: e.target.value },
+                    })
+                  }
+                />
+              </GraphOptionContainer>
+              <GraphOptionContainer>
+                <Button onClick={() => setGraphLabels(cloneDeep(localGraphLabels))}>Submit</Button>
+              </GraphOptionContainer>
+            </>
+          )
+        }
       </Div>
     </Div>
   );
