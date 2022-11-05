@@ -1,4 +1,4 @@
-import { adjustHue, getContrast } from "color2k";
+import { adjustHue, parseToHsla } from "color2k";
 
 export const mean = (arr: number[]) => arr.reduce((prev, cur) => prev + cur, 0) / arr.length;
 
@@ -168,9 +168,11 @@ export const get_best_colors = (drivers: string[]) => {
   return colors;
 };
 
-export const separateColors = (color1: string, color2: string) => {
-  if (getContrast(color1, color2) < 0.7) {
-    color2 = adjustHue(color1, 30);
+export const separateColors = (color1: string, color2: string, hadj = 60) => {
+  const hsla1 = parseToHsla(color1);
+  const hsla2 = parseToHsla(color2);
+  if (Math.abs(hsla1[0] - hsla2[0]) < hadj) {
+    color2 = adjustHue(color1, hadj);
   }
   return [color1, color2];
 };
