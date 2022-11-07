@@ -4,7 +4,6 @@ import logging
 import sys
 
 import fastf1
-
 from f1functions import *
 
 logging.getLogger(fastf1.__name__).setLevel(logging.CRITICAL)
@@ -19,19 +18,6 @@ def get_all_sessions(year):
     return {str(row['RoundNumber']): {'EventName': row['EventName'],
                                       "Sessions": [row[f"Session{i}"] for i in range(1, 6) if row[f"Session{i}"] != "None"]}
             for _, row in es.iterrows() if row.EventDate <= pd.Timestamp('now') + pd.Timedelta(3, 'days') + pd.Timedelta(1, unit='d')}
-
-
-def get_sector_comp(lap_comp):
-    sector_dists, time_diffs = [], []
-    for i in ['1', '2', '3']:
-        sn = f"Sector{i}SessionTime"
-        sdist = get_distance_from_time(
-            lap_comp.lap1tel, lap_comp.lap1[sn] - lap_comp.lap1.LapStartTime)
-        tdiff = (lap_comp.lap2[sn] - lap_comp.lap1[sn]).total_seconds() - (
-            lap_comp.lap2.LapStartTime - lap_comp.lap1.LapStartTime).total_seconds()
-        sector_dists.append(sdist)
-        time_diffs.append(tdiff if str(tdiff) != 'nan' else None)
-    return {'dists': sector_dists, 'timeDiffs': time_diffs}
 
 
 def col_df(df):
@@ -66,25 +52,38 @@ def main(func_type, json_args):
     if func_type == 'comp':
         year, round, session, laps, func_args = arg_dict['year'], arg_dict[
             'round'], arg_dict['session'], arg_dict['laps'], arg_dict['args']
-        x_ax = func_args['x_axis']
+        x_ax, by_sector = func_args['x_axis'], func_args['use_acc']
         session = fastf1.get_session(
             int(year), round if not round.isdigit() else int(round), session)
         session.load(weather=False, messages=False)
+        sector_dists = None
         driver_laps = [get_lap(session, l[0], l[1]) for l in laps]
         driver_tel = [lap.get_telemetry() for lap in driver_laps]
-        if len(driver_tel) == 2:
-            resampled_driver_tel = resample_2_by_dist(
-                driver_tel[0], driver_tel[1], x_axis=x_ax)
+        if by_sector:
+            if len(driver_tel) == 2:
+                resampled_driver_tel, sector_dists = resample_2_by_sector(
+                    driver_laps[0], driver_laps[1], driver_tel[0], driver_tel[1], x_axis=x_ax, return_dists=True)
+            else:
+                resampled_driver_tel, sector_dists = resample_all_by_dist(
+                    driver_laps, driver_tel, x_axis=x_ax, return_dists=True)
         else:
-            resampled_driver_tel = resample_all_by_dist(
-                driver_tel, x_axis=x_ax)
-        json.dump({"laptel": [
-            {
-                "driver": lap[0],
-                "lapNumber": lap[1],
-                "tel": col_df(resampled_driver_tel[i])
-            }
-            for i, lap in enumerate(laps)]}, sys.stdout)
+            if len(driver_tel) == 2:
+                resampled_driver_tel = resample_2_by_dist(
+                    driver_tel[0], driver_tel[1], x_axis=x_ax)
+            else:
+                resampled_driver_tel = resample_all_by_dist(
+                    driver_tel, x_axis=x_ax)
+        return_info = {
+            "laptel": [
+                {
+                    "driver": lap[0],
+                    "lapNumber": lap[1],
+                    "tel": col_df(resampled_driver_tel[i])
+                }
+                for i, lap in enumerate(laps)]}
+        if sector_dists is not None:
+            return_info['sectorDists'] = sector_dists
+        json.dump(return_info, sys.stdout)
         return
 
 

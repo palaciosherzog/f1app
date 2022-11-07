@@ -284,10 +284,12 @@ def compare_lap_times(lap1data, lap2data, drop_trailing_nas=True, add_zero=True,
     comblaptimes.reset_index(inplace=True)
 
     if x_axis == 'RelativeDistance':
-        comblaptimes['Distance'] = comblaptimes['RelativeDistance'] * lap1data.Distance.iloc[-1]
+        comblaptimes['Distance'] = comblaptimes['RelativeDistance'] * \
+            lap1data.Distance.iloc[-1]
     else:
-        comblaptimes['RelativeDistance'] = comblaptimes['Distance'] / comblaptimes.Distance.iloc[-1]
-    
+        comblaptimes['RelativeDistance'] = comblaptimes['Distance'] / \
+            comblaptimes.Distance.iloc[-1]
+
     return comblaptimes
 
 
@@ -777,7 +779,8 @@ class LapComparison:
         self.speed_clip = (None, None)
 
     def calculate_speed_comp(self, clip=False, x_axis='RelativeDistance'):
-        self.speed_comp = merge_by_dist(self.lap1tel, self.lap2tel, x_axis=x_axis)
+        self.speed_comp = merge_by_dist(
+            self.lap1tel, self.lap2tel, x_axis=x_axis)
         self.speed_comp['Speed_diff'] = self.speed_comp.Speed_x - \
             self.speed_comp.Speed_y
         self.speed_comp['RelativeDistance'] = self.speed_comp['RelativeDistance_x']
@@ -979,7 +982,7 @@ def hampel(vals_orig, k=7, t0=3):
 
     outlier_idx = difference > threshold
     vals[outlier_idx] = rolling_median[outlier_idx]
-    return(vals)
+    return (vals)
 
 
 class RacePace:
@@ -1321,8 +1324,8 @@ def slice_all(all_lap_data, func):
 
 def resample_2_by_dist(lap1data, lap2data, add_zero=True, x_axis='Distance'):
     # Expects to get two laps, where both the start and end are interpolated
-    
-    comblaptimes = pd.merge(lap1data[[x_axis, 'Time']].iloc[1:], lap2data[[x_axis, 'Time']].iloc[1:], # merge the two times (without the first 0s, since we'll add them again)
+
+    comblaptimes = pd.merge(lap1data[[x_axis, 'Time']], lap2data[[x_axis, 'Time']],
                             on=x_axis, how='outer').set_index(x_axis)
 
     if add_zero:
@@ -1332,26 +1335,104 @@ def resample_2_by_dist(lap1data, lap2data, add_zero=True, x_axis='Distance'):
 
     comblaptimes['Time_x'] = interpolate_times(comblaptimes.Time_x)
     comblaptimes['Time_y'] = interpolate_times(comblaptimes.Time_y)
-    
-    new_dates_x = (lap1data['Date'].iloc[0] + comblaptimes['Time_x']).drop_duplicates()
-    new_dates_y = (lap2data['Date'].iloc[0] + comblaptimes['Time_y']).drop_duplicates()
-    new_dates = pd.merge(new_dates_x, new_dates_y, left_index=True, right_index=True)
 
-    return lap1data.resample_channels(new_date_ref=new_dates['Time_x']), lap2data.resample_channels(new_date_ref=new_dates['Time_y'])
+    new_dates_x = (lap1data['Date'].iloc[0] +
+                   comblaptimes['Time_x']).drop_duplicates()
+    new_dates_y = (lap2data['Date'].iloc[0] +
+                   comblaptimes['Time_y']).drop_duplicates()
+    new_dates = pd.merge(new_dates_x, new_dates_y,
+                         left_index=True, right_index=True).dropna()
+
+    return (lap1data.resample_channels(new_date_ref=new_dates['Time_x']),
+            lap2data.resample_channels(new_date_ref=new_dates['Time_y']))
 
 
 def resample_all_by_dist(lap_datas, x_axis='Distance'):
     # For this function, we'll just sample every other lap off of the first lap that was passed
-    ref_dists = lap_datas[0][[x_axis]].copy(deep=True)
+    ref_dists = lap_datas[0][[x_axis]].drop_duplicates().copy(deep=True)
     ref_dists['Time'] = pd.NA
 
     new_dates = []
     for i in range(1, len(lap_datas)):
-      dist_times = pd.concat([lap_datas[i][[x_axis, 'Time']], ref_dists]).set_index(x_axis).sort_index()
-      new_times = interpolate_times(dist_times.Time).bfill().loc[ref_dists[x_axis]]
-      new_dates.append(lap_datas[i]['Date'].iloc[0] + new_times)
+        dist_times = pd.concat([lap_datas[i][[x_axis, 'Time']], ref_dists]).set_index(
+            x_axis).sort_index()
+        new_times = interpolate_times(
+            dist_times.Time).bfill().loc[ref_dists[x_axis]].drop_duplicates()
+        new_dates.append(lap_datas[i]['Date'].iloc[0] + new_times)
 
-    return [lap_datas[0]] + [lap_datas[i].resample_channels(new_date_ref=new_dates[i-1]).reset_index(drop=True) for i in range(1, len(lap_datas))] 
+    return [lap_datas[0]] + [lap_datas[i].resample_channels(new_date_ref=new_dates[i-1]).reset_index(drop=True)
+                             for i in range(1, len(lap_datas))]
+
+
+def resample_2_by_sector(lap1, lap2, lap1data=None, lap2data=None, x_axis='Distance', return_dists=False):
+    if lap1data is None:
+        lap1data = lap1.get_telemetry()
+    if lap2data is None:
+        lap2data = lap2.get_telemetry()
+    lap_comparison = [pd.DataFrame(), pd.DataFrame()]
+    sector_names = ['LapStartTime', 'Sector1SessionTime',
+                    'Sector2SessionTime', 'Sector3SessionTime']
+    sector_dists = []
+    for sn1, sn2 in zip(sector_names, sector_names[1:]):
+        sect1 = lap1data.slice_by_time(
+            lap1[sn1], lap1[sn2], interpolate_edges=True).add_distance().add_relative_distance()
+        sect2 = lap2data.slice_by_time(
+            lap2[sn1], lap2[sn2], interpolate_edges=True).add_distance().add_relative_distance()
+        sect_comparison = resample_2_by_dist(
+            sect1, sect2, add_zero=False, x_axis=x_axis)
+        last_dist = 0
+        for i in range(2):
+            if len(lap_comparison[i]) > 0:
+                last_dist += lap_comparison[i].Distance.iloc[-1]
+                sect_comparison[i]['Distance'] += lap_comparison[i].Distance.iloc[-1]
+                sect_comparison[i]['Time'] += lap_comparison[i].Time.iloc[-1]
+            lap_comparison[i] = pd.concat(
+                [lap_comparison[i], sect_comparison[i]], ignore_index=True)
+        sector_dists.append(last_dist/2)
+    last_dist = 0
+    for i in range(2):
+        lap_comparison[i]['RelativeDistance'] = lap_comparison[i]['Distance'] / \
+            lap_comparison[i]['Distance'].iloc[-1]
+        last_dist += lap_comparison[i]['Distance'].iloc[-1]
+    sector_dists.append(last_dist/2)
+    if return_dists:
+        if x_axis == 'RelativeDistance':
+            sector_dists = [d/sector_dists[-1] for d in sector_dists]
+        return lap_comparison, sector_dists
+    return lap_comparison
+
+
+def resample_all_by_sector(laps, lapsdata=None, x_axis='Distance', return_dists=False):
+    if lapsdata is None:
+        lapsdata = [lap.get_telemetry() for lap in laps]
+    lap_comparison = [pd.DataFrame() for _ in laps]
+    sector_names = ['LapStartTime', 'Sector1SessionTime',
+                    'Sector2SessionTime', 'Sector3SessionTime']
+    sector_dists = []
+    for sn1, sn2 in zip(sector_names, sector_names[1:]):
+        sects = [lapsdata[i].slice_by_time(laps[i][sn1], laps[i][sn2], interpolate_edges=True).add_distance(
+        ).add_relative_distance() for i in range(len(laps))]
+        sect_comparison = resample_all_by_dist(sects, x_axis=x_axis)
+        last_dist = 0
+        for i in range(len(laps)):
+            if len(lap_comparison[i]) > 0:
+                last_dist += lap_comparison[i].Distance.iloc[-1]
+                sect_comparison[i]['Distance'] += lap_comparison[i].Distance.iloc[-1]
+                sect_comparison[i]['Time'] += lap_comparison[i].Time.iloc[-1]
+            lap_comparison[i] = pd.concat(
+                [lap_comparison[i], sect_comparison[i]], ignore_index=True)
+        sector_dists.append(last_dist/len(laps))
+    last_dist = 0
+    for i in range(len(laps)):
+        lap_comparison[i]['RelativeDistance'] = lap_comparison[i]['Distance'] / \
+            lap_comparison[i]['Distance'].iloc[-1]
+        last_dist += lap_comparison[i]['Distance'].iloc[-1]
+    sector_dists.append(last_dist/len(laps))
+    if return_dists:
+        if x_axis == 'RelativeDistance':
+            sector_dists = [d/sector_dists[-1] for d in sector_dists]
+        return lap_comparison, sector_dists
+    return lap_comparison
 
 
 def get_lap(session, driver, lap_num):

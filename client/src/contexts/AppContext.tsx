@@ -22,6 +22,8 @@ export type AppContextType = {
     yearInfo: YearInfo | undefined;
     lapInfo: DriverLaps | undefined;
     graphInfo: LapTel | undefined;
+    graphArgs: GraphArgs;
+    sectorDists: number[] | undefined;
     sessionInfo: SessionId;
     compLaps: string[][];
     compLaps2: string[][];
@@ -55,7 +57,9 @@ export const AppContext = React.createContext<AppContextType>({} as AppContextTy
 export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const [yearInfo, setYearInfo] = useState<YearInfo | undefined>();
   const [lapInfo, setLapInfo] = useState<DriverLaps | undefined>();
+  const [graphArgs, setGraphArgs] = useState<GraphArgs>({ x_axis: "Distance", use_acc: false });
   const [graphInfo, setGraphInfo] = useState<LapTel | undefined>();
+  const [sectorDists, setSectorDists] = useState<number[] | undefined>();
   const [sessionInfo, setSessionInfo] = useState<SessionId>({ year: "", session: "", round: "" });
   const [compLaps, setCompLaps] = useState<string[][]>([]);
   const [compLaps2, setCompLaps2] = useState<string[][]>([]);
@@ -121,12 +125,14 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
     setLapsLoading(false);
   };
 
-  const getGraphsInfo = async (graphArgs: GraphArgs) => {
+  const getGraphsInfo = async (args: GraphArgs) => {
     setGraphsLoading(true);
     if (sessionInfo.year && sessionInfo.round && sessionInfo.session && compLaps.length >= 2) {
-      const compInfo = await getCompData(sessionInfo, compLaps, graphArgs);
+      const compInfo = await getCompData(sessionInfo, compLaps, args);
       const res = JSON.parse(compInfo);
+      setGraphArgs(args);
       setGraphInfo(res.laptel);
+      setSectorDists(res.sectorDists);
     }
     setGraphsLoading(false);
   };
@@ -136,6 +142,8 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
       yearInfo,
       lapInfo,
       graphInfo,
+      graphArgs,
+      sectorDists,
       sessionInfo,
       compLaps,
       compLaps2,

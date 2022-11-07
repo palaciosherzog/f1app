@@ -4,7 +4,7 @@ import { Button, Input, Select, Slider, Switch } from "antd";
 import { cloneDeep } from "lodash";
 import Plot from "react-plotly.js";
 import { AppContext, LapLabels } from "../contexts/AppContext";
-import { getColDiff, getGraphCompData, getGraphHeight } from "../utils/graph-utils";
+import { getColDiff, getGraphCompData, getGraphHeight, Tel } from "../utils/graph-utils";
 import ColorSelector from "./ColorSelector";
 import Div from "./Div";
 import GraphOptionContainer from "./GraphOptionContainer";
@@ -16,7 +16,7 @@ const GraphView: React.FC<{
   onHover: (_eventData: any) => void;
 }> = ({ graphRef, onHover }) => {
   const {
-    state: { graphInfo, graphMarker, graphLabels },
+    state: { graphInfo, graphMarker, graphLabels, sectorDists, graphArgs },
     actions: { setGraphMarker, setGraphLabels },
   } = useContext(AppContext);
 
@@ -52,7 +52,9 @@ const GraphView: React.FC<{
             {...getGraphCompData(
               graphInfo,
               graphLabels,
+              sectorDists,
               maxTDiff,
+              graphArgs.x_axis as keyof Tel,
               showRollingGraph ? rollingGraph : undefined,
               graphMarker,
               otherYs

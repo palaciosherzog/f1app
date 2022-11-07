@@ -1,7 +1,7 @@
 import { LapLabels } from "../contexts/AppContext";
 import { getHampel, getMeanStd, groupBy, mean, rolling } from "./calc-utils";
 
-type Tel = {
+export type Tel = {
   Date: number[];
   SessionTime: number[];
   DriverAhead: string[];
@@ -153,7 +153,9 @@ export const getGraphHeight = (colNames: string[]) => {
 export const getGraphCompData = (
   lapTel: LapTel,
   graphInfo: LapLabels,
+  sectorDists: number[] | undefined,
   maxTDiff: number,
+  xColumn: keyof Tel = "Distance",
   rollingK?: number,
   graphMarker?: number,
   otherys?: boolean | string[]
@@ -189,7 +191,7 @@ export const getGraphCompData = (
       driverData.map((data, j) =>
         colName !== "sepTime"
           ? {
-              x: data.Distance,
+              x: data[xColumn],
               //@ts-ignore
               y: data[colName],
               xaxis: "x",
@@ -208,7 +210,7 @@ export const getGraphCompData = (
     data: [
       ...graphData,
       {
-        x: lapTel[0].tel.Distance,
+        x: lapTel[0].tel[xColumn],
         y: timeDiffs,
         type: "scatter",
         mode: "lines",
@@ -243,7 +245,7 @@ export const getGraphCompData = (
       ...(separateTime < 0
         ? {
             [`yaxis${columnsToPlot.length + 1}`]: {
-              text: `${graphInfo.labels[1]} ahead <-- | Time Difference (s) | --> ${graphInfo.labels[0]} ahead`,
+              title: `${graphInfo.labels[1]} ahead <-- | Time Diff (s) | --> ${graphInfo.labels[0]} ahead`,
               overlaying: "y1",
               side: "right",
               zerolinecolor: "#999",
@@ -255,24 +257,21 @@ export const getGraphCompData = (
         : {}),
       legend: {
         orientation: "h",
+        y: 1.05,
       },
       hovermode: "x",
-      // TODO: add support for sectors
-      // shapes: graphInfo?.sectorcomp?.dists
-      //   ? [
-      //       ...graphInfo.sectorcomp.dists,
-      //       ...(graphMarker ? [graphMarker * graphInfo.driver1data.Distance.slice(-1)[0]] : []),
-      //     ].map((d) => ({
-      //       line: { color: "#777" },
-      //       type: "line",
-      //       xref: "x",
-      //       yref: "paper",
-      //       x0: d,
-      //       y0: 0,
-      //       x1: d,
-      //       y1: 1,
-      //     }))
-      //   : [],
+      shapes: sectorDists
+        ? [...sectorDists, ...(graphMarker ? [lapTel[0].tel.Distance[graphMarker]] : [])].map((d) => ({
+            line: { color: "#777" },
+            type: "line",
+            xref: "x",
+            yref: "paper",
+            x0: d,
+            y0: 0,
+            x1: d,
+            y1: 1,
+          }))
+        : [],
       margin: { l: 60, r: 60, b: 60, t: 60 },
       autosize: true,
       ...(otherys
