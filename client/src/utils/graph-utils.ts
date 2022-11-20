@@ -45,6 +45,7 @@ export const getColDiff = (
 export const getMapCompData = (
   lapTel: LapTel,
   graphInfo: LapLabels,
+  cameraPos: object,
   maxColor: number,
   rollingK?: number,
   graphMarker?: number
@@ -111,10 +112,7 @@ export const getMapCompData = (
       paper_bgcolor: "#292625",
       plot_bgcolor: "#1e1c1b",
       scene: {
-        camera: {
-          eye: { x: 0.5, y: 0.5, z: 7 },
-          up: { x: 0, y: 1, z: 0 },
-        },
+        ...cameraPos,
         aspectmode: "data",
         aspectratio: { xaxis: 1, yaxis: 1, zaxis: 1 },
       },

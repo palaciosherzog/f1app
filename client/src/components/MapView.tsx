@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 
 import { Slider, Switch } from "antd";
+import { get } from "lodash";
 import Plot from "react-plotly.js";
 import { AppContext } from "../contexts/AppContext";
 import { getColDiff, getMapCompData } from "../utils/graph-utils";
@@ -19,6 +20,13 @@ const MapView: React.FC<MapViewProps> = ({ mapRef, onMapHover }) => {
   const [mmaxColor, setMmaxColor] = useState<number>();
   const [showRollingMap, setShowRollingMap] = useState<boolean>(false);
   const [rollingMap, setRollingMap] = useState<number>(3);
+  const [cameraPos, setCameraPos] = useState<object>({
+    camera: {
+      eye: { x: 0.5, y: 0.5, z: 7 },
+      up: { x: 0, y: 1, z: 0 },
+    },
+    dragmode: "pan",
+  });
 
   React.useEffect(() => {
     if (graphInfo) {
@@ -32,11 +40,24 @@ const MapView: React.FC<MapViewProps> = ({ mapRef, onMapHover }) => {
     <Div flexDirection="column" flexWrap="wrap" width="35vw" margin="25px">
       <Div width="100%" height="30vw">
         {graphInfo && maxColor && (
-          // TODO: option to plot time_diff based on x y ?
+          // TODO: option to plot time_diff based on x y ? -- click multiple times to create sections?
           <Plot
             ref={mapRef}
             divId="mapPlot"
-            {...getMapCompData(graphInfo, graphLabels, maxColor, showRollingMap ? rollingMap : undefined, graphMarker)}
+            {...getMapCompData(
+              graphInfo,
+              graphLabels,
+              cameraPos,
+              maxColor,
+              showRollingMap ? rollingMap : undefined,
+              graphMarker
+            )}
+            onRelayout={(eventData: any) =>
+              setCameraPos({
+                camera: get(eventData, "scene.camera", get(cameraPos, "camera")),
+                dragmode: get(eventData, "scene.dragmode", get(cameraPos, "dragmode")),
+              })
+            }
             onHover={(eventData: any) => onMapHover(eventData)}
             onClick={(eventData: any) => setGraphMarker(eventData.points[0].pointNumber)}
           />
