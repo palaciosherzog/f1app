@@ -6,11 +6,12 @@ import Plot from "react-plotly.js";
 import { AppContext } from "../contexts/AppContext";
 import { FilterOptions, getLapGraph } from "../utils/graph-utils";
 import Div from "./Div";
+import GraphContainer from "./GraphContainer";
 import GraphOptionContainer from "./GraphOptionContainer";
 
 const LapView: React.FC = () => {
   const {
-    state: { lapInfo, driverFilter, compLaps },
+    state: { lapsLoading, lapInfo, driverFilter, compLaps },
     actions: { setCompLaps },
   } = useContext(AppContext);
 
@@ -39,8 +40,8 @@ const LapView: React.FC = () => {
   // TODO: add way to adjust lap time on race pace for simulation
   // thinking: need to make a way where if you click on one, set it as the one to add the clicked lap onto
   return (
-    <Div flexDirection="column" width="100%" justifyContent="center" alignItems="center">
-      <Div width="80%" height="30vw" marginLeft="10%">
+    <Div display="flex" flexDirection="column" width="80%" alignItems="center">
+      <GraphContainer defaultHeight="30vw" defaultWidth="100%" loading={lapsLoading}>
         {lapInfo && (
           <Plot
             onClick={(eventdata: any) => setCompLaps([...compLaps, eventdata.points[0].text.split("-")])}
@@ -55,7 +56,7 @@ const LapView: React.FC = () => {
             )}
           />
         )}
-      </Div>
+      </GraphContainer>
       <Div display="flex" flexDirection="row" justifyContent="center">
         <GraphOptionContainer>
           <p style={{ color: "white" }}>

@@ -1,4 +1,3 @@
-import { LapLabels } from "../contexts/AppContext";
 import { getHampel, getMeanStd, groupBy, mean, rolling } from "./calc-utils";
 
 export type Tel = {
@@ -44,7 +43,7 @@ export const getColDiff = (
 
 export const getMapCompData = (
   lapTel: LapTel,
-  graphInfo: LapLabels,
+  lapColors: string[],
   cameraPos: object,
   maxColor: number,
   rollingK?: number,
@@ -78,15 +77,15 @@ export const getMapCompData = (
           cmin: -maxColor,
           cmax: maxColor,
           colorscale: [
-            ["0", graphInfo.colors[1]],
+            ["0", lapColors[1]],
             ["0.5", "#fff"],
-            ["1", graphInfo.colors[0]],
+            ["1", lapColors[0]],
           ],
           showscale: true,
           colorbar: {
             tickfont: { color: "#fff" },
             title: {
-              text: `${graphInfo.labels[1]} faster <-- | Speed Diff (km/h) | --> ${graphInfo.labels[0]} faster`,
+              text: `${lapTel[1].driver}-${lapTel[1].lapNumber} faster <-- | Speed Diff (km/h) | --> ${lapTel[0].driver}-${lapTel[0].lapNumber} faster`,
               side: "right",
               font: { color: "#fff" },
             },
@@ -109,6 +108,8 @@ export const getMapCompData = (
         : [{}]),
     ],
     layout: {
+      font: { color: "#292625" },
+      title: { x: 0.4, y: 0.98, text: "Speed Comparison Through a Lap", font: { color: "#fff" } },
       paper_bgcolor: "#292625",
       plot_bgcolor: "#1e1c1b",
       scene: {
@@ -150,7 +151,7 @@ export const getGraphHeight = (colNames: string[]) => {
 
 export const getGraphCompData = (
   lapTel: LapTel,
-  graphInfo: LapLabels,
+  lapColors: string[],
   sectorDists: number[] | undefined,
   maxTDiff: number,
   xColumn: keyof Tel = "Distance",
@@ -196,8 +197,8 @@ export const getGraphCompData = (
               yaxis: `y${i + 1}`,
               type: "scatter",
               mode: "lines",
-              line: { color: graphInfo.colors[j] },
-              name: graphInfo.labels[j],
+              line: { color: lapColors[j] },
+              name: `${lapTel[j].driver}-${lapTel[j].lapNumber}`,
               hovertemplate: "%{y:.3f}",
             }
           : {}
@@ -243,7 +244,7 @@ export const getGraphCompData = (
       ...(separateTime < 0
         ? {
             [`yaxis${columnsToPlot.length + 1}`]: {
-              title: `${graphInfo.labels[1]} ahead <-- | Time Diff (s) | --> ${graphInfo.labels[0]} ahead`,
+              title: `${lapTel[1].driver}-${lapTel[1].lapNumber} ahead <-- | Time Diff (s) | --> ${lapTel[0].driver}-${lapTel[0].lapNumber} ahead`,
               overlaying: "y1",
               side: "right",
               zerolinecolor: "#999",
@@ -282,7 +283,7 @@ export const getGraphCompData = (
             },
           }
         : {}),
-      title: graphInfo.title,
+      title: "Lap Comparison",
     },
     useResizeHandler: true,
     style: { width: "100%", height: "100%" },

@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { get_best_colors } from "../utils/calc-utils";
 import { getCompData, getLapData, getRaceData, GraphArgs, SessionId } from "../utils/data-utils";
 import { DriverLaps, LapTel } from "../utils/graph-utils";
-
-export type MarkerInfo = number;
 
 type YearInfo = {
   [rn: string]: { EventName: number; Sessions: string[] };
@@ -31,9 +28,7 @@ export type AppContextType = {
     sessionsLoading: boolean;
     lapsLoading: boolean;
     graphsLoading: boolean;
-    graphMarker: MarkerInfo | undefined;
     lapsList: LapSelectOption[] | undefined;
-    graphLabels: LapLabels;
   };
   actions: {
     getYearInfo: () => void;
@@ -43,8 +38,6 @@ export type AppContextType = {
     setCompLaps: (_value: string[][]) => void;
     setCompLaps2: (_value: string[][]) => void;
     setDriverFilter: (_value: string[]) => void;
-    setGraphMarker: (_value?: MarkerInfo) => void;
-    setGraphLabels: (_value: LapLabels) => void;
   };
 };
 
@@ -67,9 +60,7 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const [sessionsLoading, setSessionsLoading] = useState<boolean>(false);
   const [lapsLoading, setLapsLoading] = useState<boolean>(false);
   const [graphsLoading, setGraphsLoading] = useState<boolean>(false);
-  const [graphMarker, setGraphMarker] = useState<MarkerInfo | undefined>();
   const [lapsList, setLapsList] = React.useState<LapSelectOption[]>();
-  const [graphLabels, setGraphLabels] = useState<LapLabels>({ title: "Lap Comparison", labels: {}, colors: {} });
 
   React.useEffect(() => {
     if (lapInfo) {
@@ -94,18 +85,6 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
       getLapInfo();
     }
   }, [sessionInfo]);
-
-  useEffect(() => {
-    if (graphInfo) {
-      const newGraphLabels = { title: "Lap Comparison", colors: {}, labels: {} };
-      const driverColors = get_best_colors(graphInfo.map(({ driver }) => driver));
-      graphInfo.forEach(({ driver, lapNumber }, i) => {
-        newGraphLabels.colors = { ...newGraphLabels.colors, [i]: driverColors[driver] };
-        newGraphLabels.labels = { ...newGraphLabels.labels, [i]: `${driver}-${lapNumber}` };
-      });
-      setGraphLabels(newGraphLabels);
-    }
-  }, [graphInfo]);
 
   const getYearInfo = async () => {
     setSessionsLoading(true);
@@ -151,9 +130,7 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
       sessionsLoading,
       lapsLoading,
       graphsLoading,
-      graphMarker,
       lapsList,
-      graphLabels,
     },
     actions: {
       getYearInfo,
@@ -163,8 +140,6 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
       setCompLaps,
       setCompLaps2,
       setDriverFilter,
-      setGraphMarker,
-      setGraphLabels,
     },
   };
 

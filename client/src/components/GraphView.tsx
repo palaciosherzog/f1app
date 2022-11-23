@@ -1,57 +1,94 @@
-import React, { useContext, useEffect, useState } from "react";
+import Plotly from "plotly.js-dist-min";
+import React, { useContext, useState } from "react";
 
-import { Button, Input, Select, Slider, Switch } from "antd";
-import { cloneDeep } from "lodash";
+import { Button, Select, Slider, Switch } from "antd";
+import { get } from "lodash";
 import Plot from "react-plotly.js";
-import { AppContext, LapLabels } from "../contexts/AppContext";
-import { getColDiff, getGraphCompData, getGraphHeight, Tel } from "../utils/graph-utils";
+import { AppContext } from "../contexts/AppContext";
+import { get_best_colors } from "../utils/calc-utils";
+import { getColDiff, getGraphCompData, getGraphHeight, getMapCompData, Tel } from "../utils/graph-utils";
 import ColorSelector from "./ColorSelector";
 import Div from "./Div";
+import GraphContainer from "./GraphContainer";
 import GraphOptionContainer from "./GraphOptionContainer";
 
 const { Option } = Select;
 
-const GraphView: React.FC<{
-  graphRef: React.MutableRefObject<HTMLElement | undefined>;
-  onHover: (_eventData: any) => void;
-}> = ({ graphRef, onHover }) => {
+const GraphView: React.FC = () => {
   const {
-    state: { graphInfo, graphMarker, graphLabels, sectorDists, graphArgs },
-    actions: { setGraphMarker, setGraphLabels },
+    state: { graphsLoading, graphInfo, sectorDists, graphArgs },
   } = useContext(AppContext);
 
+  const [graphMarker, setGraphMarker] = useState<number | undefined>();
   const [showRollingGraph, setShowRollingGraph] = useState<boolean>(false);
   const [rollingGraph, setRollingGraph] = useState<number>(3);
   const [maxTDiff, setMaxTDiff] = useState<number>(1.0);
   const [mmaxTDiff, setMmaxTDiff] = useState<number>();
   const [otherYs, setOtherYs] = useState<string[]>([]);
-  const [localGraphLabels, setLocalGraphLabels] = useState<LapLabels>({ title: "", colors: {}, labels: {} });
+  const [maxColor, setMaxColor] = useState<number>(10);
+  const [mmaxColor, setMmaxColor] = useState<number>();
+  const [showRollingMap, setShowRollingMap] = useState<boolean>(false);
+  const [rollingMap, setRollingMap] = useState<number>(3);
+  const [cameraPos, setCameraPos] = useState<object>({
+    camera: {
+      eye: { x: 0.5, y: 0.5, z: 7 },
+      up: { x: 0, y: 1, z: 0 },
+    },
+    dragmode: "pan",
+  });
+  const [lineColors, setLineColors] = useState<string[]>([]);
 
-  useEffect(() => {
+  const setLineColor = (index: number, color: string) => {
+    const newLineColors = lineColors.slice();
+    newLineColors[index] = color;
+    setLineColors(newLineColors);
+  };
+
+  const graphPlot = React.useRef<HTMLElement>();
+  const mapPlot = React.useRef<HTMLElement>();
+
+  const onMapHover = (eventdata: any) => {
     if (graphInfo) {
+      const relDist = graphInfo[0].tel.Distance[eventdata.points[0].pointNumber];
+      //@ts-ignore
+      Plotly.Fx.hover("graphPlot", {
+        xval: relDist,
+      });
+    }
+  };
+
+  const onGraphHover = (eventdata: any) => {
+    if (graphInfo) {
+    }
+  };
+
+  React.useEffect(() => {
+    if (graphInfo) {
+      const driverColors = get_best_colors(graphInfo.map(({ driver }) => driver));
+      setLineColors(graphInfo.map(({ driver }) => driverColors[driver]));
+      const speedDiff = getColDiff(graphInfo, "Speed");
+      const absSpeedMax = Math.ceil(Math.max(...speedDiff.map((a) => Math.abs(a))));
+      setMmaxColor(absSpeedMax);
       const time_diff = getColDiff(graphInfo, "Time");
-      const absMax = Math.ceil(Math.max(...time_diff.map((a) => Math.abs(a)), 1000) / 100) / 10;
-      setMmaxTDiff(absMax);
+      const absTimeMax = Math.ceil(Math.max(...time_diff.map((a) => Math.abs(a)), 1000) / 100) / 10;
+      setMmaxTDiff(absTimeMax);
     }
   }, [graphInfo]);
 
-  useEffect(() => {
-    setLocalGraphLabels(cloneDeep(graphLabels));
-  }, [graphLabels]);
-
+  // TODO: use this instead of 30vw as the height
   const graphHeight = `${getGraphHeight(["Speed", ...otherYs])}vw`;
 
   return (
     // TODO: show where yellow flags are based off time overlap with sectors, on lap graph show all reds/scs/etc.
-    <Div flexDirection="column" width="55vw" margin="25px">
-      <Div width="100%" minHeight="30vw" height={graphHeight}>
+    <>
+      <GraphContainer defaultHeight={"30vw"} defaultWidth={"55vw"} loading={graphsLoading}>
         {graphInfo && (
           <Plot
-            ref={graphRef}
+            ref={graphPlot}
             divId="graphPlot"
             {...getGraphCompData(
               graphInfo,
-              graphLabels,
+              lineColors,
               sectorDists,
               maxTDiff,
               graphArgs.x_axis as keyof Tel,
@@ -59,12 +96,39 @@ const GraphView: React.FC<{
               graphMarker,
               otherYs
             )}
-            onHover={(eventData: any) => onHover(eventData)}
+            config={{ editable: true }}
+            onHover={(eventData: any) => onGraphHover(eventData)}
             onClick={(eventData: any) => setGraphMarker(eventData.points[0].pointNumber)}
             // NOTE: currently, there's not an easy way to link the graph hover to the map hover
           />
         )}
-      </Div>
+      </GraphContainer>
+      <GraphContainer defaultHeight={"30vw"} defaultWidth={"35vw"} loading={graphsLoading}>
+        {graphInfo && maxColor && (
+          // TODO: option to plot time_diff based on x y ? -- click multiple times to create sections?
+          <Plot
+            ref={mapPlot}
+            divId="mapPlot"
+            {...getMapCompData(
+              graphInfo,
+              lineColors,
+              cameraPos,
+              maxColor,
+              showRollingMap ? rollingMap : undefined,
+              graphMarker
+            )}
+            config={{ editable: true }}
+            onRelayout={(eventData: any) =>
+              setCameraPos({
+                camera: get(eventData, "scene.camera", get(cameraPos, "camera")),
+                dragmode: get(eventData, "scene.dragmode", get(cameraPos, "dragmode")),
+              })
+            }
+            onHover={(eventData: any) => onMapHover(eventData)}
+            onClick={(eventData: any) => setGraphMarker(eventData.points[0].pointNumber)}
+          />
+        )}
+      </GraphContainer>
       <Div display="flex" flexDirection="row" justifyContent="center" height="10vw" flexWrap="wrap">
         <GraphOptionContainer>
           <p>
@@ -98,64 +162,36 @@ const GraphView: React.FC<{
           </Select>
         </GraphOptionContainer>
         <GraphOptionContainer>
-          <Button onClick={() => setGraphMarker()}>Clear Marker</Button>
+          <Button onClick={() => setGraphMarker(undefined)}>Clear Marker</Button>
+        </GraphOptionContainer>
+        <GraphOptionContainer>
+          <p style={{ color: "white" }}>
+            Current speed range: -{maxColor} to {maxColor}
+          </p>
+          <Slider min={1} step={1} value={maxColor} max={mmaxColor} onChange={(value) => setMaxColor(value)} />
+        </GraphOptionContainer>
+        <GraphOptionContainer>
+          <p style={{ color: "white" }}>Rolling Mean for Map{showRollingMap && `: ${rollingMap}`}</p>
+          <Switch onChange={() => setShowRollingMap(!showRollingMap)} />
+          {showRollingMap && (
+            <Slider value={rollingMap} step={1} min={1} max={300} onChange={(value) => setRollingMap(value)} />
+          )}
         </GraphOptionContainer>
         {
           // TODO: we probably wanna replace this with a form
           graphInfo && (
-            <>
-              <GraphOptionContainer>
-                <Input
-                  placeholder="Title of Graph"
-                  value={localGraphLabels.title}
-                  onChange={(e) => setLocalGraphLabels({ ...localGraphLabels, title: e.target.value })}
-                />
-              </GraphOptionContainer>
-              <GraphOptionContainer>
+            <GraphOptionContainer>
+              <Div display="flex" alignItems="center">
                 {/* TODO: add alert when two colors are too similar */}
-                <ColorSelector
-                  value={localGraphLabels.colors[0]}
-                  setValue={(v) =>
-                    setLocalGraphLabels({ ...localGraphLabels, colors: { ...localGraphLabels.colors, 0: v } })
-                  }
-                />
-                <Input
-                  placeholder="Label for Line 1"
-                  value={localGraphLabels.labels[0]}
-                  onChange={(e) =>
-                    setLocalGraphLabels({
-                      ...localGraphLabels,
-                      labels: { ...localGraphLabels.labels, 0: e.target.value },
-                    })
-                  }
-                />
-              </GraphOptionContainer>
-              <GraphOptionContainer>
-                <ColorSelector
-                  value={localGraphLabels.colors[1]}
-                  setValue={(v) =>
-                    setLocalGraphLabels({ ...localGraphLabels, colors: { ...localGraphLabels.colors, 1: v } })
-                  }
-                />
-                <Input
-                  placeholder="Label for Line 1"
-                  value={localGraphLabels.labels[1]}
-                  onChange={(e) =>
-                    setLocalGraphLabels({
-                      ...localGraphLabels,
-                      labels: { ...localGraphLabels.labels, 1: e.target.value },
-                    })
-                  }
-                />
-              </GraphOptionContainer>
-              <GraphOptionContainer>
-                <Button onClick={() => setGraphLabels(cloneDeep(localGraphLabels))}>Submit</Button>
-              </GraphOptionContainer>
-            </>
+                <ColorSelector value={lineColors[0]} setValue={(v) => setLineColor(0, v)} />
+                <ColorSelector value={lineColors[1]} setValue={(v) => setLineColor(1, v)} />
+                <Button>Submit</Button>
+              </Div>
+            </GraphOptionContainer>
           )
         }
       </Div>
-    </Div>
+    </>
   );
 };
 
