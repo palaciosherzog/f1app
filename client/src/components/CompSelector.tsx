@@ -15,8 +15,8 @@ interface Option {
 
 const DriverSelector = () => {
   const {
-    state: { compLaps, compLaps2 },
-    actions: { setCompLaps, setCompLaps2, getGraphsInfo },
+    state: { compLaps },
+    actions: { setCompLaps, getGraphsInfo },
   } = useContext(AppContext);
 
   const [useAcc, setUseAcc] = React.useState<boolean>(false);
@@ -30,11 +30,6 @@ const DriverSelector = () => {
         <Div flex={1} mx="5px">
           <LapSelector value={compLaps} onChange={setCompLaps} />
         </Div>
-        {/* <Div flex={1} mx="5px">
-          <LapSelector value={compLaps2} onChange={setCompLaps2} />
-        </Div>
-      </SelectorContainer>
-      <SelectorContainer> */}
         <Div mt="5px" mx="5px">
           <Checkbox
             style={{ color: "white" }}

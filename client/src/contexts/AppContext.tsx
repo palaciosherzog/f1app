@@ -10,7 +10,7 @@ export type LapLabels = { title: string; colors: { [_l: number]: string }; label
 
 interface LapSelectOption {
   value: string;
-  label: string;
+  title: string;
   children?: LapSelectOption[];
 }
 
@@ -22,8 +22,7 @@ export type AppContextType = {
     graphArgs: GraphArgs;
     sectorDists: number[] | undefined;
     sessionInfo: SessionId;
-    compLaps: string[][];
-    compLaps2: string[][];
+    compLaps: string[];
     driverFilter: string[];
     sessionsLoading: boolean;
     lapsLoading: boolean;
@@ -35,8 +34,7 @@ export type AppContextType = {
     getLapInfo: () => void;
     getGraphsInfo: (_graphArgs: GraphArgs) => void;
     setSessionInfo: (_value: SessionId) => void;
-    setCompLaps: (_value: string[][]) => void;
-    setCompLaps2: (_value: string[][]) => void;
+    setCompLaps: (_value: string[]) => void;
     setDriverFilter: (_value: string[]) => void;
   };
 };
@@ -54,8 +52,7 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const [graphInfo, setGraphInfo] = useState<LapTel | undefined>();
   const [sectorDists, setSectorDists] = useState<number[] | undefined>();
   const [sessionInfo, setSessionInfo] = useState<SessionId>({ year: "", session: "", round: "" });
-  const [compLaps, setCompLaps] = useState<string[][]>([]);
-  const [compLaps2, setCompLaps2] = useState<string[][]>([]);
+  const [compLaps, setCompLaps] = useState<string[]>([]);
   const [driverFilter, setDriverFilter] = useState<string[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState<boolean>(false);
   const [lapsLoading, setLapsLoading] = useState<boolean>(false);
@@ -66,11 +63,11 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
     if (lapInfo) {
       setLapsList(
         Object.entries(lapInfo).map(([driver, ls]) => ({
-          label: driver,
+          title: driver,
           value: driver,
           children: ls.laps.LapNumber.map((ln: number, i: number) => ({
-            label: `Lap ${ln} [${ls.laps.LapTime[i]}]`,
-            value: `${ln}`,
+            title: `Lap ${ln} [${ls.laps.LapTime[i]}]`,
+            value: `${driver}-${ln}`,
           })),
         }))
       );
@@ -125,7 +122,6 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
       sectorDists,
       sessionInfo,
       compLaps,
-      compLaps2,
       driverFilter,
       sessionsLoading,
       lapsLoading,
@@ -138,7 +134,6 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
       getGraphsInfo,
       setSessionInfo,
       setCompLaps,
-      setCompLaps2,
       setDriverFilter,
     },
   };
