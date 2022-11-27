@@ -1,5 +1,5 @@
 import axios from "axios";
-import { compData, lapData, raceData } from "./test-data";
+import { compData, lapData, multiCompData, raceData } from "./test-data";
 
 const USE_TEST_DATA = true;
 const apiClient = axios.create({
@@ -42,7 +42,7 @@ export const getLapData = async (reqData: SessionId): Promise<string> => {
 export const getCompData = async (session: SessionId, laps: string[], graphArgs: GraphArgs): Promise<string> => {
   if (USE_TEST_DATA) {
     return new Promise((resolve) => {
-      resolve(compData);
+      laps.length !== 2 ? resolve(multiCompData) : resolve(compData);
     });
   }
   const newLaps = laps.map((l) => l.split("-"));

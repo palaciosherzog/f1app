@@ -1,7 +1,7 @@
 import Plotly from "plotly.js-dist-min";
 import React, { useContext, useState } from "react";
 
-import { Button, Select, Slider, Switch } from "antd";
+import { Button, Radio, Select, Slider, Switch } from "antd";
 import { get } from "lodash";
 import Plot from "react-plotly.js";
 import { AppContext } from "../contexts/AppContext";
@@ -29,6 +29,7 @@ const GraphView: React.FC = () => {
   const [mmaxColor, setMmaxColor] = useState<number>();
   const [showRollingMap, setShowRollingMap] = useState<boolean>(false);
   const [rollingMap, setRollingMap] = useState<number>(3);
+  const [mapType, setMapType] = useState<string>("Binned");
   const [cameraPos, setCameraPos] = useState<object>({
     camera: {
       eye: { x: 0.5, y: 0.5, z: 7 },
@@ -51,9 +52,13 @@ const GraphView: React.FC = () => {
     if (graphInfo) {
       const relDist = graphInfo[0].tel.Distance[eventdata.points[0].pointNumber];
       //@ts-ignore
-      Plotly.Fx.hover("graphPlot", {
-        xval: relDist,
-      });
+      Plotly.Fx.hover(
+        "graphPlot",
+        {
+          xval: relDist,
+        }
+        // ["xy", ...otherYs.map((_, i) => `xy${i + 2}`)] syncing hovers is too messy
+      );
     }
   };
 
@@ -64,6 +69,9 @@ const GraphView: React.FC = () => {
 
   React.useEffect(() => {
     if (graphInfo) {
+      if (graphInfo.length !== 2) {
+        setMapType("Binned");
+      }
       const driverColors = get_best_colors(graphInfo.map(({ driver }) => driver));
       setLineColors(graphInfo.map(({ driver }) => driverColors[driver]));
       const speedDiff = getColDiff(graphInfo, "Speed");
@@ -113,6 +121,7 @@ const GraphView: React.FC = () => {
               graphInfo,
               lineColors,
               cameraPos,
+              mapType,
               maxColor,
               showRollingMap ? rollingMap : undefined,
               graphMarker
@@ -177,15 +186,28 @@ const GraphView: React.FC = () => {
             <Slider value={rollingMap} step={1} min={1} max={300} onChange={(value) => setRollingMap(value)} />
           )}
         </GraphOptionContainer>
+        <GraphOptionContainer>
+          <Radio.Group onChange={(e) => setMapType(e.target.value)} value={mapType}>
+            <Radio.Button value="Binned">Binned</Radio.Button>
+            <Radio.Button value="Actual" disabled={(graphInfo ? graphInfo.length : 0) !== 2}>
+              Actual
+            </Radio.Button>
+          </Radio.Group>
+        </GraphOptionContainer>
         {
           // TODO: we probably wanna replace this with a form
           graphInfo && (
             <GraphOptionContainer>
               <Div display="flex" alignItems="center">
                 {/* TODO: add alert when two colors are too similar */}
-                <ColorSelector value={lineColors[0]} setValue={(v) => setLineColor(0, v)} />
-                <ColorSelector value={lineColors[1]} setValue={(v) => setLineColor(1, v)} />
-                <Button>Submit</Button>
+                {lineColors.map((_, i) => (
+                  <ColorSelector
+                    key={`color-selector-${i}`}
+                    value={lineColors[i]}
+                    setValue={(v) => setLineColor(i, v)}
+                  />
+                ))}
+                {/* <Button>Submit</Button> */}
               </Div>
             </GraphOptionContainer>
           )

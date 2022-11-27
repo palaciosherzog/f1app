@@ -1,3 +1,4 @@
+import { mix } from "color2k";
 import { getHampel, getMeanStd, groupBy, mean, rolling } from "./calc-utils";
 
 export type Tel = {
@@ -41,16 +42,40 @@ export const getColDiff = (
   return lapTel[lap1].tel[col].map((v, i) => func(v, lapTel[lap2].tel[col][i]));
 };
 
+export const getColMaxInds = (lapTel: LapTel, col: keyof Tel) => {
+  let maxInds = [];
+  for (let j = 0; j < lapTel[0].tel[col].length; j++) {
+    let maxInd = -1,
+      maxVal = -Infinity;
+    for (let i = 0; i < lapTel.length; i++) {
+      //@ts-ignore
+      if (lapTel[i].tel[col][j] > maxVal) {
+        //@ts-ignore
+        maxVal = lapTel[i].tel[col][j];
+        maxInd = i;
+      }
+    }
+    maxInds.push(maxInd);
+  }
+  return maxInds;
+};
+
 export const getMapCompData = (
   lapTel: LapTel,
   lapColors: string[],
   cameraPos: object,
+  mapType: string,
   maxColor: number,
   rollingK?: number,
   graphMarker?: number
 ) => {
-  const speedDiff = getColDiff(lapTel, "Speed");
-  const rollingSpeedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
+  let speedDiff;
+  if (mapType === "Actual") {
+    speedDiff = getColDiff(lapTel, "Speed");
+  } else {
+    speedDiff = getColMaxInds(lapTel, "Speed");
+  }
+  speedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
   let markerInfo = undefined;
   if (graphMarker) {
     markerInfo = {
@@ -70,25 +95,47 @@ export const getMapCompData = (
         mode: "line",
         marker: { opacity: 0.001 },
         line: {
-          color: rollingSpeedDiff,
+          color: speedDiff,
           width: 10,
-          opacity: 0.8,
-          cmid: 0,
-          cmin: -maxColor,
-          cmax: maxColor,
-          colorscale: [
-            ["0", lapColors[1]],
-            ["0.5", "#fff"],
-            ["1", lapColors[0]],
-          ],
+          ...(mapType === "Actual"
+            ? {
+                cmid: 0,
+                cmin: -maxColor,
+                cmax: maxColor,
+                colorscale: [
+                  ["0", lapColors[1]],
+                  ["0.5", "#fff"],
+                  ["1", lapColors[0]],
+                ],
+              }
+            : {
+                cmin: -0.5,
+                cmax: lapColors.length - 0.5,
+                colorscale: lapColors
+                  .map((c, i) => [
+                    [i / lapColors.length, c],
+                    [(i + 1) / lapColors.length, c],
+                  ])
+                  .flat(1),
+              }),
           showscale: true,
           colorbar: {
             tickfont: { color: "#fff" },
-            title: {
-              text: `${lapTel[1].driver}-${lapTel[1].lapNumber} faster <-- | Speed Diff (km/h) | --> ${lapTel[0].driver}-${lapTel[0].lapNumber} faster`,
-              side: "right",
-              font: { color: "#fff" },
-            },
+            ...(mapType === "Actual"
+              ? {
+                  title: {
+                    text: `${lapTel[1].driver}-${lapTel[1].lapNumber} faster <-- | Speed Diff (km/h) | --> ${lapTel[0].driver}-${lapTel[0].lapNumber} faster`,
+                    side: "right",
+                    font: { color: "#fff" },
+                  },
+                }
+              : {
+                  tick0: 0,
+                  dtick: 1,
+                  tickmode: "array",
+                  ticktext: lapTel.map(({ driver, lapNumber }) => `${driver}-${lapNumber}`),
+                  tickvals: lapTel.map((_, i) => i),
+                }),
           },
         },
         hoverinfo: "text",
@@ -132,6 +179,7 @@ const yAxisLabels: { [_name: string]: string } = {
   Brake: "Brake ON",
   DRS: "DRS",
   nGear: "nGear",
+  sepTime: "Interval",
 };
 
 const gapHeight = 1;
@@ -159,16 +207,18 @@ export const getGraphCompData = (
   graphMarker?: number,
   otherys?: boolean | string[]
 ) => {
-  let timeDiffs = getColDiff(lapTel, "Time", undefined, undefined, (a, b) => (a - b) / 1000);
+  let timeDiffs = lapTel.slice(1).map((_, i) => getColDiff(lapTel, "Time", 0, i + 1, (a, b) => (a - b) / 1000));
   if (graphMarker) {
-    const diffTo0 = timeDiffs[graphMarker];
-    timeDiffs = timeDiffs.map((td) => td - diffTo0);
+    timeDiffs = timeDiffs.map((timeDiff) => {
+      const diffTo0 = timeDiff[graphMarker];
+      return timeDiff.map((td) => td - diffTo0);
+    });
   }
   if (rollingK) {
-    timeDiffs = rolling(timeDiffs, rollingK, mean);
+    timeDiffs = timeDiffs.map((timeDiff) => rolling(timeDiff, rollingK, mean));
   }
 
-  const driverData = [lapTel[0].tel, lapTel[1].tel];
+  const driverData = lapTel.map((lt) => lt.tel);
   let columnsToPlot = ["Speed"];
   if (otherys === true) {
     columnsToPlot = [...columnsToPlot, "Throttle", "Brake", "DRS", "nGear"];
@@ -184,6 +234,7 @@ export const getGraphCompData = (
   const startValues = [0, ...heights];
   const endValues = heights.map((v) => v - gap);
   const separateTime = columnsToPlot.indexOf("sepTime");
+  const timeAxis = separateTime < 0 ? `y${columnsToPlot.length + 1}` : `y${separateTime + 1}`;
 
   const graphData = columnsToPlot
     .map((colName, i) =>
@@ -200,25 +251,31 @@ export const getGraphCompData = (
               line: { color: lapColors[j] },
               name: `${lapTel[j].driver}-${lapTel[j].lapNumber}`,
               hovertemplate: "%{y:.3f}",
+              showlegend: colName === "Speed",
             }
           : {}
       )
     )
     .flat();
+  const timeDiffData = timeDiffs.map((timeDiff, i) => ({
+    x: lapTel[0].tel[xColumn],
+    y: timeDiff,
+    type: "scatter",
+    mode: "lines",
+    yaxis: timeAxis,
+    line: {
+      color: lapColors[i + 1] && (separateTime >= 0 ? lapColors[i + 1] : mix(lapColors[i + 1], "white", 0.6)),
+      dash: separateTime < 0 ? "dash" : undefined,
+    },
+    name:
+      separateTime >= 0
+        ? `${lapTel[i + 1].driver}-${lapTel[i + 1].lapNumber}`
+        : `${lapTel[i + 1].driver}-${lapTel[i + 1].lapNumber} Interval`,
+    hovertemplate: "%{y:+.3}",
+    showlegend: separateTime < 0,
+  }));
   return {
-    data: [
-      ...graphData,
-      {
-        x: lapTel[0].tel[xColumn],
-        y: timeDiffs,
-        type: "scatter",
-        mode: "lines",
-        yaxis: separateTime < 0 ? `y${columnsToPlot.length + 1}` : `y${separateTime + 1}`,
-        line: { color: "white" },
-        name: "Time Difference",
-        hovertemplate: "%{y:.3f}",
-      },
-    ],
+    data: [...graphData, ...timeDiffData],
     layout: {
       font: { color: "#fff" },
       paper_bgcolor: "#292625",
@@ -244,7 +301,7 @@ export const getGraphCompData = (
       ...(separateTime < 0
         ? {
             [`yaxis${columnsToPlot.length + 1}`]: {
-              title: `${lapTel[1].driver}-${lapTel[1].lapNumber} ahead <-- | Time Diff (s) | --> ${lapTel[0].driver}-${lapTel[0].lapNumber} ahead`,
+              title: `Time Difference (s) (Interval)`,
               overlaying: "y1",
               side: "right",
               zerolinecolor: "#999",
@@ -256,7 +313,7 @@ export const getGraphCompData = (
         : {}),
       legend: {
         orientation: "h",
-        y: 1.05,
+        y: -0.3,
       },
       hovermode: "x",
       shapes: sectorDists
