@@ -23,7 +23,6 @@ const DriverSelector = () => {
   const [xAxis, setXAxis] = React.useState<string>("Distance");
 
   // TODO: should add an option to compare averages of a bunch of laps --> i already have the algorithm set up
-  // TODO: add a way to compare all laps to the first one
   return (
     <>
       <SelectorContainer>

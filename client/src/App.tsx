@@ -6,8 +6,8 @@ import GraphView from "./components/GraphView";
 import LapView from "./components/LapView";
 import SessionSelector from "./components/SessionSelector";
 
-// TODO: make the formatting nicer
-// TODO: should we hide all options under dropdowns and stuff???
+// TODO - UI:  make the formatting nicer
+// TODO - UI: should we hide all options under dropdowns and stuff???
 const App = () => {
   return (
     <Div display="flex" flexDirection="column" flexWrap="wrap" width="100%" minHeight="100vh" backgroundColor="#292625">

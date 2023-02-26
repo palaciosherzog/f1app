@@ -26,7 +26,7 @@ const GraphContainer = ({ defaultHeight, defaultWidth, loading, children }: Grap
         height: defaultHeight,
       }}
       onResize={() => window.dispatchEvent(new Event("resize"))}
-      // TODO: make this resize with the graph a bit smoother
+      // TODO - UI: make this resize with the graph a bit smoother
     >
       {loading ? (
         <CustomLoading />

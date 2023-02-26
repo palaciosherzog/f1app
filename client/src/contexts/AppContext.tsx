@@ -59,21 +59,6 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const [graphsLoading, setGraphsLoading] = useState<boolean>(false);
   const [lapsList, setLapsList] = React.useState<LapSelectOption[]>();
 
-  React.useEffect(() => {
-    if (lapInfo) {
-      setLapsList(
-        Object.entries(lapInfo).map(([driver, ls]) => ({
-          title: driver,
-          value: driver,
-          children: ls.laps.LapNumber.map((ln: number, i: number) => ({
-            title: `Lap ${ln} [${ls.laps.LapTime[i]}]`,
-            value: `${driver}-${ln}`,
-          })),
-        }))
-      );
-    }
-  }, [lapInfo]);
-
   useEffect(() => {
     if (sessionInfo.year && !sessionInfo.round && !sessionInfo.session) {
       getYearInfo();
@@ -95,7 +80,17 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const getLapInfo = async () => {
     setLapsLoading(true);
     if (sessionInfo.year && sessionInfo.round && sessionInfo.session) {
-      const data = JSON.parse(await getLapData(sessionInfo));
+      const data: DriverLaps = JSON.parse(await getLapData(sessionInfo));
+      setLapsList(
+        Object.entries(data).map(([driver, ls]) => ({
+          title: driver,
+          value: driver,
+          children: ls.laps.LapNumber.map((ln: number, i: number) => ({
+            title: `Lap ${ln} [${ls.laps.LapTime[i]}]`,
+            value: `${driver}-${ln}`,
+          })),
+        }))
+      );
       setLapInfo(data);
     }
     setLapsLoading(false);

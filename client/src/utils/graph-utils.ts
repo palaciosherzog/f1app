@@ -397,15 +397,14 @@ export type DriverLaps = {
   };
 };
 
-// TODO: add options to customize these filters (hampel & stddev mostly)
-// TODO: add option to just select laps to not include
-// TODO: add option to only include laps in a certain time range
 export type FilterOptions = {
+  laps?: Array<[string, number]>;
   lapRange?: [number, number];
+  lapTimeRange?: [number, number];
   boxLaps?: boolean;
   trackStatus?: boolean;
-  hampel?: boolean;
-  stddev?: boolean;
+  hampel?: [number, number] | undefined;
+  stddev?: undefined | number;
 };
 
 const longToWide = (lapInfo: LapsInfo): LapInfo[] => {
@@ -472,26 +471,41 @@ const fixLapTimes = (lapInfo: DriverLaps, fixFunc: (_laps: LapsInfo, _d: string)
   );
 };
 
-const filterFunc = (lapInfo: LapsInfo, filterOpts?: FilterOptions) => {
+const filterFunc = (driver: string, lapInfo: LapsInfo, filterOpts?: FilterOptions) => {
   let lapInds = Array(lapInfo.LapNumber.length).fill(true); // keep all initially
   if (filterOpts?.lapRange) {
     const [startLapNum, endLapNum] = filterOpts.lapRange;
     lapInds = lapInds.map((b, i) => b && lapInfo.LapNumber[i] >= startLapNum && lapInfo.LapNumber[i] <= endLapNum);
   }
+  if (filterOpts?.lapTimeRange) {
+    const [minLapTime, maxLapTime] = filterOpts.lapTimeRange;
+    lapInds = lapInds.map(
+      (b, i) =>
+        b &&
+        lapInfo.Time[i] - lapInfo.LapStartTime[i] >= minLapTime &&
+        lapInfo.Time[i] - lapInfo.LapStartTime[i] <= maxLapTime
+    );
+  }
+  if (filterOpts?.laps) {
+    filterOpts.laps.map(([d, ln]) => d === driver && (lapInds[ln - 1] = false));
+  }
   filterOpts?.boxLaps &&
     (lapInds = lapInds.map((b, i) => b && lapInfo.PitInTime[i] === null && lapInfo.PitOutTime[i] === null));
   filterOpts?.trackStatus && (lapInds = lapInds.map((b, i) => b && lapInfo.TrackStatus[i] === "1"));
   if (filterOpts?.hampel) {
+    const [k, t0] = filterOpts.hampel;
     const filteredIndexes = lapInfo.LapTime.map((_v, i) => i).filter((_v, i) => lapInds[i]);
     const isOutlier = getHampel(
       lapInfo.LapTime.filter((_v, i) => lapInds[i]),
-      Math.floor(filteredIndexes.length / 5)
+      k,
+      t0
     );
     filteredIndexes.forEach((ind, i) => (lapInds[ind] = lapInds[ind] && isOutlier[i]));
   }
   if (filterOpts?.stddev) {
+    const t0 = filterOpts.stddev;
     const { mean, std } = getMeanStd(lapInfo.LapTime.filter((_v, i) => lapInds[i]));
-    lapInds = lapInds.map((b, i) => b && Math.abs(lapInfo.LapTime[i] - mean) < 3 * std);
+    lapInds = lapInds.map((b, i) => b && Math.abs(lapInfo.LapTime[i] - mean) < t0 * std);
   }
   return lapInds; // same length array, true if should be included
 };
@@ -609,11 +623,11 @@ export const getLapGraph = (
     lapInfo = fixLapTimes(lapInfo, (laps, _d) => subtractArrays(laps.LapTime, fuelCorrection));
   }
   const removeDriverFilter = Object.fromEntries(
-    Object.entries(lapInfo).map(([d, { laps }]) => [d, filterFunc(laps, removeFilterOpts)])
+    Object.entries(lapInfo).map(([d, { laps }]) => [d, filterFunc(d, laps, removeFilterOpts)])
   );
   lapInfo = filterLapInfo(lapInfo, removeDriverFilter);
   const driverFilter = markFilterOpts
-    ? Object.fromEntries(Object.entries(lapInfo).map(([d, { laps }]) => [d, filterFunc(laps, markFilterOpts)]))
+    ? Object.fromEntries(Object.entries(lapInfo).map(([d, { laps }]) => [d, filterFunc(d, laps, markFilterOpts)]))
     : undefined;
 
   if (type === "race-trace") {

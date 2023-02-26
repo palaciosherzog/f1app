@@ -83,7 +83,7 @@ const GraphView: React.FC = () => {
     }
   }, [graphInfo]);
 
-  // TODO: use this instead of 30vw as the height
+  // TODO - UI: use this instead of 30vw as the height
   const graphHeight = `${getGraphHeight(["Speed", ...otherYs])}vw`;
 
   return (
@@ -195,11 +195,11 @@ const GraphView: React.FC = () => {
           </Radio.Group>
         </GraphOptionContainer>
         {
-          // TODO: we probably wanna replace this with a form
+          // TODO - UI: we probably wanna replace this with a form
           graphInfo && (
             <GraphOptionContainer>
               <Div display="flex" alignItems="center">
-                {/* TODO: add alert when two colors are too similar */}
+                {/* TODO - UI: add alert when two colors are too similar */}
                 {lineColors.map((_, i) => (
                   <ColorSelector
                     key={`color-selector-${i}`}
