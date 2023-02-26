@@ -398,6 +398,8 @@ export type DriverLaps = {
 };
 
 // TODO: add options to customize these filters (hampel & stddev mostly)
+// TODO: add option to just select laps to not include
+// TODO: add option to only include laps in a certain time range
 export type FilterOptions = {
   lapRange?: [number, number];
   boxLaps?: boolean;

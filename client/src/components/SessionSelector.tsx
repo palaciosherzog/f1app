@@ -23,7 +23,10 @@ const SessionSelector: React.FC = () => {
           inputId="year-select"
           className="single-select"
           classNamePrefix="react-select"
-          options={[{ label: "2022", value: "2022" }]}
+          options={[
+            { label: "2022", value: "2022" },
+            { label: "2023", value: "2023" },
+          ]}
           value={localYear}
           placeholder="Year..."
           onChange={(e: string) => {

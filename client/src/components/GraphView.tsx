@@ -104,7 +104,7 @@ const GraphView: React.FC = () => {
               graphMarker,
               otherYs
             )}
-            config={{ editable: true }}
+            config={{ editable: true, edits: { shapePosition: false } }}
             onHover={(eventData: any) => onGraphHover(eventData)}
             onClick={(eventData: any) => setGraphMarker(eventData.points[0].pointNumber)}
             // NOTE: currently, there's not an easy way to link the graph hover to the map hover

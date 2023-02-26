@@ -39,6 +39,7 @@ const LapView: React.FC = () => {
 
   // TODO: add way to adjust lap time on race pace for simulation
   // thinking: need to make a way where if you click on one, set it as the one to add the clicked lap onto
+  // TODO: let's make a modal pop up on picking which has options
   return (
     <Div display="flex" flexDirection="column" width="80%" alignItems="center">
       <GraphContainer defaultHeight="30vw" defaultWidth="100%" loading={lapsLoading}>

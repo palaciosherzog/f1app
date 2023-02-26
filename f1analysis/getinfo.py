@@ -13,7 +13,7 @@ fastf1.Cache.enable_cache('../f1analysis/cache')
 
 
 def get_all_sessions(year):
-    es = fastf1.get_event_schedule(year, include_testing=False)
+    es = fastf1.get_event_schedule(year, include_testing=True)
     es = es[es.F1ApiSupport]
     return {str(row['RoundNumber']): {'EventName': row['EventName'],
                                       "Sessions": [row[f"Session{i}"] for i in range(1, 6) if row[f"Session{i}"] != "None"]}
@@ -38,7 +38,8 @@ def main(func_type, json_args):
     if func_type == 'laps':
         year, round, session = arg_dict['year'], arg_dict['round'], arg_dict['session']
         session = fastf1.get_session(
-            int(year), round if not round.isdigit() else int(round), session)
+            int(year), round if not round.isdigit() else int(round), session) if round != "0" else fastf1.get_testing_session(int(year), 1, int(''.join(c for c in session if c.isdigit())))
+        # TODO: make a more reliable way to get the session / testing session and make it a function
         session.load(laps=True, telemetry=False,
                      weather=False, messages=False)
         driver_colors = get_best_colors(session.laps.Driver)
@@ -54,7 +55,7 @@ def main(func_type, json_args):
             'round'], arg_dict['session'], arg_dict['laps'], arg_dict['args']
         x_ax, by_sector = func_args['x_axis'], func_args['use_acc']
         session = fastf1.get_session(
-            int(year), round if not round.isdigit() else int(round), session)
+            int(year), round if not round.isdigit() else int(round), session) if round != "0" else fastf1.get_testing_session(int(year), 1, int(''.join(c for c in session if c.isdigit())))
         session.load(weather=False, messages=False)
         sector_dists = None
         driver_laps = [get_lap(session, l[0], l[1]) for l in laps]
