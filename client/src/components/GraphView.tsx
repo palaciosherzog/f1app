@@ -1,6 +1,7 @@
 import Plotly from "plotly.js-dist-min";
 import React, { useContext, useState } from "react";
 
+import { css } from "@emotion/css";
 import { Button, InputNumber, Radio, Select, Slider, Switch } from "antd";
 import { get, sortBy, uniq } from "lodash";
 import Plot from "react-plotly.js";
@@ -174,7 +175,7 @@ const GraphView: React.FC = () => {
           <Slider min={0.1} step={0.1} value={maxTDiff} max={mmaxTDiff} onChange={(value) => setMaxTDiff(value)} />
         </GraphOptionContainer>
         <GraphOptionContainer>
-          <p style={{ color: "white" }}>
+          <p>
             Rolling Mean
             {showRollingGraph && `: ${rollingGraph}`}
           </p>
@@ -187,7 +188,9 @@ const GraphView: React.FC = () => {
           <Select
             mode="multiple"
             allowClear
-            style={{ width: "100%" }}
+            className={css`
+              width: 100%;
+            `}
             placeholder="Other data..."
             onChange={(value: string[]) => setOtherYs(value)}
           >
@@ -202,7 +205,7 @@ const GraphView: React.FC = () => {
           <Button onClick={() => setGraphMarker(undefined)}>Clear Marker</Button>
         </GraphOptionContainer>
         <GraphOptionContainer>
-          <p style={{ color: "white" }}>
+          <p>
             Current {mapComp.toLowerCase()} range: -{maxColor} to {maxColor}
           </p>
           <Slider
@@ -214,7 +217,7 @@ const GraphView: React.FC = () => {
           />
         </GraphOptionContainer>
         <GraphOptionContainer>
-          <p style={{ color: "white" }}>Rolling Mean for Map{showRollingMap && `: ${rollingMap}`}</p>
+          <p>Rolling Mean for Map{showRollingMap && `: ${rollingMap}`}</p>
           <Switch onChange={() => setShowRollingMap(!showRollingMap)} />
           {showRollingMap && (
             <Slider value={rollingMap} step={1} min={1} max={300} onChange={(value) => setRollingMap(value)} />

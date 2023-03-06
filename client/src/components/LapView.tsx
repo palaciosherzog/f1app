@@ -1,5 +1,6 @@
 import React, { useContext, useState } from "react";
 
+import { css } from "@emotion/css";
 import { Button, Checkbox, InputNumber, Modal, Radio, Slider, Switch } from "antd";
 import { CheckboxValueType } from "antd/lib/checkbox/Group";
 import Plot from "react-plotly.js";
@@ -147,7 +148,7 @@ const LapView: React.FC = () => {
       </GraphContainer>
       <Div display="flex" flexDirection="row" justifyContent="center">
         <GraphOptionContainer>
-          <p style={{ color: "white" }}>
+          <p>
             Current lap range: {lapRange[0]} to {lapRange[1]}
           </p>
           <Slider
@@ -158,7 +159,7 @@ const LapView: React.FC = () => {
             value={lapRange}
             onChange={(value: [number, number]) => setLapRange(value)}
           />
-          <p style={{ color: "white" }}>
+          <p>
             Current lap time range: {lapTimeRange[0]} to {lapTimeRange[1]}
           </p>
           <Slider
@@ -178,7 +179,7 @@ const LapView: React.FC = () => {
           </Radio.Group>
         </GraphOptionContainer>
         <GraphOptionContainer>
-          <p style={{ color: "white" }}>Correct Lap Times for Fuel Load</p>
+          <p>Correct Lap Times for Fuel Load</p>
           <Switch onChange={() => setFuelLoad(fuelLoad === undefined ? 100 : undefined)} />
           {fuelLoad !== undefined && (
             <Slider value={fuelLoad} step={1} min={0} max={200} onChange={(value) => setFuelLoad(value)} />
@@ -186,49 +187,37 @@ const LapView: React.FC = () => {
         </GraphOptionContainer>
         <GraphOptionContainer width="35vw">
           <Checkbox.Group
-            style={{
-              width: "100%",
-              color: "white",
-            }}
+            className={css`
+              color: white;
+              span {
+                color: white;
+              }
+            `}
             onChange={(e) => setFilterOptions(setRemoveFilter, e)}
           >
             <Div display="flex" flexDirection="row">
               <Div mr={3}>Remove:</Div>
-              <Checkbox value="boxLaps" style={{ color: "white" }}>
-                Box Laps
-              </Checkbox>
-              <Checkbox value="trackStatus" style={{ color: "white" }}>
-                Status
-              </Checkbox>
-              <Checkbox value="hampel" style={{ color: "white" }}>
-                Hampel
-              </Checkbox>
-              <Checkbox value="stddev" style={{ color: "white" }}>
-                Std. Dev.
-              </Checkbox>
+              <Checkbox value="boxLaps">Box Laps</Checkbox>
+              <Checkbox value="trackStatus">Status</Checkbox>
+              <Checkbox value="hampel">Hampel</Checkbox>
+              <Checkbox value="stddev">Std. Dev.</Checkbox>
             </Div>
           </Checkbox.Group>
           <Checkbox.Group
-            style={{
-              width: "100%",
-              color: "white",
-            }}
+            className={css`
+              color: white;
+              span {
+                color: white;
+              }
+            `}
             onChange={(e) => setFilterOptions(setMarkFilter, e)}
           >
             <Div display="flex" flexDirection="row">
               <Div mr={3}>Mark:</Div>
-              <Checkbox value="boxLaps" style={{ color: "white" }}>
-                Box Laps
-              </Checkbox>
-              <Checkbox value="trackStatus" style={{ color: "white" }}>
-                Status
-              </Checkbox>
-              <Checkbox value="hampel" style={{ color: "white" }}>
-                Hampel
-              </Checkbox>
-              <Checkbox value="stddev" style={{ color: "white" }}>
-                Std. Dev.
-              </Checkbox>
+              <Checkbox value="boxLaps">Box Laps</Checkbox>
+              <Checkbox value="trackStatus">Status</Checkbox>
+              <Checkbox value="hampel">Hampel</Checkbox>
+              <Checkbox value="stddev">Std. Dev.</Checkbox>
             </Div>
           </Checkbox.Group>
           <Div>Hampel k:</Div>

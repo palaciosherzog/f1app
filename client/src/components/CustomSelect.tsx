@@ -1,3 +1,4 @@
+import { css } from "@emotion/css";
 import { Select } from "antd";
 import Div from "./Div";
 
@@ -14,7 +15,9 @@ const CustomSelect = (props: any) => {
         loading={isLoading}
         onChange={onChange}
         value={value}
-        style={{ width: "100%" }}
+        className={css`
+          width: 100%;
+        `}
       >
         {options.map((opt: any, i: number) => (
           <Option key={`select-option-${i}`} value={opt.value}>

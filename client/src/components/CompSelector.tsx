@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
 
+import { css } from "@emotion/css";
 import { Button, Checkbox, Radio } from "antd";
 import { CheckboxChangeEvent } from "antd/lib/checkbox";
 import { AppContext } from "../contexts/AppContext";
@@ -22,7 +23,7 @@ const DriverSelector = () => {
   const [useAcc, setUseAcc] = React.useState<boolean>(false);
   const [xAxis, setXAxis] = React.useState<string>("Distance");
 
-  // TODO: should add an option to compare averages of a bunch of laps --> i already have the algorithm set up
+  // TODO: should add an option to compare averages of a bunch of laps --> need to make python function more fault tolerant before implementing
   return (
     <>
       <SelectorContainer>
@@ -31,7 +32,9 @@ const DriverSelector = () => {
         </Div>
         <Div mt="5px" mx="5px">
           <Checkbox
-            style={{ color: "white" }}
+            className={css`
+              color: white;
+            `}
             checked={useAcc}
             onChange={(v: CheckboxChangeEvent) => setUseAcc(v.target.checked)}
           >

@@ -17,7 +17,9 @@ const LapSelector: React.FC<LapSelectorProps> = ({ value, onChange }) => {
   return (
     <TreeSelect
       value={value}
-      style={{ width: "100%" }}
+      className={css`
+        width: 100%;
+      `}
       multiple
       treeData={lapsList}
       onChange={(v: string[]) => (v.at(-1) ?? "-").includes("-") && onChange(v)}
