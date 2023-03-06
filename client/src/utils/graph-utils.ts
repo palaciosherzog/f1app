@@ -60,6 +60,52 @@ export const getColMaxInds = (lapTel: LapTel, col: keyof Tel) => {
   return maxInds;
 };
 
+export const getEqualSegmentPoints = (lapTel: LapTel, splitNum: number) => {
+  const distances = lapTel[0].tel.Distance;
+  const segmentLength = distances[distances.length - 1] / splitNum;
+  let segNum = 1;
+  const points: number[] = [];
+  distances.forEach((d, i) => {
+    if (d > segmentLength * segNum) {
+      points.push(i);
+      segNum++;
+    }
+  });
+  return points;
+};
+
+export const getSpeedChangePoints = (lapTel: LapTel, rollingK?: number) => {
+  let speedDiff;
+  speedDiff = getColMaxInds(lapTel, "Speed");
+  speedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
+  const points: number[] = [];
+  speedDiff.reduce((p, c, i) => {
+    const nc = Math.floor(Math.min(c, 0.999) / 0.5);
+    p !== nc && points.push(i);
+    return nc;
+  }, 0);
+  return points;
+};
+
+export const getSectionTimeDiffs = (lapTel: LapTel, splitPoints: number[], lap1 = 0, lap2 = 1) => {
+  splitPoints = [0, ...splitPoints, lapTel[lap1].tel.Time.length - 1];
+  const lap1diffs: number[] = [];
+  const lap2diffs: number[] = [];
+  for (let i = 0; i < splitPoints.length - 1; i++) {
+    lap1diffs.push(lapTel[lap1].tel.Time[splitPoints[i + 1]] - lapTel[lap1].tel.Time[splitPoints[i]]);
+    lap2diffs.push(lapTel[lap2].tel.Time[splitPoints[i + 1]] - lapTel[lap2].tel.Time[splitPoints[i]]);
+  }
+  let j = 0;
+  const res = lapTel[lap1].tel.Time.map((_v, ind) => {
+    if (ind >= splitPoints[j + 1]) {
+      j++;
+    }
+    return lap2diffs[j] - lap1diffs[j];
+  });
+  res[res.length - 1] = res[res.length - 2];
+  return res;
+};
+
 export const getMapCompData = (
   lapTel: LapTel,
   lapColors: string[],
@@ -67,15 +113,25 @@ export const getMapCompData = (
   mapType: string,
   maxColor: number,
   rollingK?: number,
-  graphMarker?: number
+  graphMarker?: number,
+  mapComp?: string,
+  splitPoints?: number[]
 ) => {
   let speedDiff;
-  if (mapType === "Actual") {
-    speedDiff = getColDiff(lapTel, "Speed");
-  } else {
-    speedDiff = getColMaxInds(lapTel, "Speed");
+  if (mapComp !== "Time") {
+    if (mapType === "Actual") {
+      speedDiff = getColDiff(lapTel, "Speed");
+    } else {
+      speedDiff = getColMaxInds(lapTel, "Speed");
+    }
+    speedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
+    // TODO: fix the rolling speedDiff for multiple drivers (above too)
+  } else if (splitPoints) {
+    speedDiff = getSectionTimeDiffs(lapTel, splitPoints);
+    if (mapType !== "Actual") {
+      speedDiff = speedDiff.map((v) => -v);
+    }
   }
-  speedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
   let markerInfo = undefined;
   if (graphMarker) {
     markerInfo = {
@@ -84,6 +140,11 @@ export const getMapCompData = (
       Z: [lapTel[0].tel.Z[graphMarker]],
     };
   }
+  const splitInfo = splitPoints && {
+    X: splitPoints.map((i) => lapTel[0].tel.X[i]),
+    Y: splitPoints.map((i) => lapTel[0].tel.Y[i]),
+    Z: splitPoints.map((i) => lapTel[0].tel.Z[i]),
+  };
   return {
     data: [
       {
@@ -124,7 +185,9 @@ export const getMapCompData = (
             ...(mapType === "Actual"
               ? {
                   title: {
-                    text: `${lapTel[1].driver}-${lapTel[1].lapNumber} faster <-- | Speed Diff (km/h) | --> ${lapTel[0].driver}-${lapTel[0].lapNumber} faster`,
+                    text: `${lapTel[1].driver}-${lapTel[1].lapNumber} ${mapComp === "Speed" ? "faster" : ""} <-- | ${
+                      mapComp === "Speed" ? "Speed Diff (km/h)" : "Time Gained (ms)"
+                    } | --> ${lapTel[0].driver}-${lapTel[0].lapNumber} ${mapComp === "Speed" ? "faster" : ""}`,
                     side: "right",
                     font: { color: "#fff" },
                   },
@@ -147,8 +210,21 @@ export const getMapCompData = (
               y: markerInfo.Y,
               z: markerInfo.Z,
               type: "scatter3d",
-              mode: "scatter",
-              marker: { size: 8, color: "#000" },
+              mode: "markers",
+              marker: { size: 8, color: markerColor },
+              hoverinfo: "none",
+            },
+          ]
+        : [{}]),
+      ...(splitInfo
+        ? [
+            {
+              x: splitInfo.X,
+              y: splitInfo.Y,
+              z: splitInfo.Z,
+              type: "scatter3d",
+              mode: "markers",
+              marker: { size: 6, color: splitColor },
               hoverinfo: "none",
             },
           ]
@@ -156,7 +232,12 @@ export const getMapCompData = (
     ],
     layout: {
       font: { color: "#292625" },
-      title: { x: 0.4, y: 0.98, text: "Speed Comparison Through a Lap", font: { color: "#fff" } },
+      title: {
+        x: 0.4,
+        y: 0.98,
+        text: `${mapComp === "Speed" ? "Speed Comparison" : "Time Difference"} Through a Lap`,
+        font: { color: "#fff" },
+      },
       paper_bgcolor: "#292625",
       plot_bgcolor: "#1e1c1b",
       scene: {
@@ -193,6 +274,9 @@ const yAxisHeights: { [_name: string]: number } = {
   sepTime: 8,
 };
 
+const markerColor = "#000";
+const splitColor = "#555";
+
 export const getGraphHeight = (colNames: string[]) => {
   return colNames.reduce((prev, colName) => prev + yAxisHeights[colName], 0) + gapHeight * (colNames.length - 1);
 };
@@ -205,7 +289,8 @@ export const getGraphCompData = (
   xColumn: keyof Tel = "Distance",
   rollingK?: number,
   graphMarker?: number,
-  otherys?: boolean | string[]
+  otherys?: boolean | string[],
+  splitPoints?: number[]
 ) => {
   let timeDiffs = lapTel.slice(1).map((_, i) => getColDiff(lapTel, "Time", 0, i + 1, (a, b) => (a - b) / 1000));
   if (graphMarker) {
@@ -316,18 +401,28 @@ export const getGraphCompData = (
         y: -0.3,
       },
       hovermode: "x",
-      shapes: sectorDists
-        ? [...sectorDists, ...(graphMarker ? [lapTel[0].tel.Distance[graphMarker]] : [])].map((d) => ({
-            line: { color: "#777" },
-            type: "line",
-            xref: "x",
-            yref: "paper",
-            x0: d,
-            y0: 0,
-            x1: d,
-            y1: 1,
-          }))
-        : [],
+      shapes: [
+        ...(sectorDists || []).map((d) => ({ d: d, line: { color: "#777" } })),
+        ...(graphMarker ? [lapTel[0].tel.Distance[graphMarker]] : []).map((d) => ({
+          d: d,
+          line: { color: markerColor, dash: "dash" },
+        })),
+        ,
+        ...(splitPoints ? splitPoints.map((i) => lapTel[0].tel.Distance[i]) : []).map((d) => ({
+          d: d,
+          line: { color: splitColor, dash: "dash" },
+        })),
+        ,
+      ].map((info) => ({
+        line: info?.line,
+        type: "line",
+        xref: "x",
+        yref: "paper",
+        x0: info?.d,
+        y0: 0,
+        x1: info?.d,
+        y1: 1,
+      })),
       margin: { l: 60, r: 60, b: 60, t: 60 },
       autosize: true,
       ...(otherys
@@ -543,7 +638,7 @@ const getStintSummary = (lapInfo: DriverLaps) => {
         return {
           driver: driver,
           stint: stint,
-          compound: lapInfo[driver].laps.Compound[indexes[0]],
+          compound: lapInfo[driver].laps.Compound[indexes.slice(-1)[0]],
           firstLapNumber: lapInfo[driver].laps.LapNumber[indexes[0]],
           lastLapNumber: lapInfo[driver].laps.LapNumber[indexes.slice(-1)[0]],
           numberOfLaps: indexes.length,
@@ -569,12 +664,12 @@ export const getStintGraph = (lapInfo: DriverLaps) => {
     data: [
       {
         x: stintSummary.map((v) => v.stintName),
-        y: stintSummary.map((v) => Math.max(v.averagePctOff, 0.03)),
+        y: stintSummary.map((v) => Math.max(v.averagePctOff, 0.001)),
         //orientation: "h",
         type: "bar",
         text: stintSummary.map((v) => `${v.numberOfLaps}-${v.compound}`),
         textposition: "auto",
-        hoverinfo: "text",
+        hovertemplate: "<b>%{text}</b><br>%{y:.2f}% off<extra></extra>",
         marker: {
           color: stintSummary.map((v) => lapInfo[v.driver].color),
           line: {

@@ -1,12 +1,21 @@
 import Plotly from "plotly.js-dist-min";
 import React, { useContext, useState } from "react";
 
-import { Button, Radio, Select, Slider, Switch } from "antd";
-import { get } from "lodash";
+import { Button, InputNumber, Radio, Select, Slider, Switch } from "antd";
+import { get, sortBy, uniq } from "lodash";
 import Plot from "react-plotly.js";
 import { AppContext } from "../contexts/AppContext";
 import { get_best_colors } from "../utils/calc-utils";
-import { getColDiff, getGraphCompData, getGraphHeight, getMapCompData, Tel } from "../utils/graph-utils";
+import {
+  getColDiff,
+  getEqualSegmentPoints,
+  getGraphCompData,
+  getGraphHeight,
+  getMapCompData,
+  getSectionTimeDiffs,
+  getSpeedChangePoints,
+  Tel,
+} from "../utils/graph-utils";
 import ColorSelector from "./ColorSelector";
 import Div from "./Div";
 import GraphContainer from "./GraphContainer";
@@ -26,7 +35,8 @@ const GraphView: React.FC = () => {
   const [mmaxTDiff, setMmaxTDiff] = useState<number>();
   const [otherYs, setOtherYs] = useState<string[]>([]);
   const [maxColor, setMaxColor] = useState<number>(10);
-  const [mmaxColor, setMmaxColor] = useState<number>();
+  const [mapMaxSDiff, setMapMaxSDiff] = useState<number>();
+  const [mapMaxTDiff, setMapMaxTDiff] = useState<number>();
   const [showRollingMap, setShowRollingMap] = useState<boolean>(false);
   const [rollingMap, setRollingMap] = useState<number>(3);
   const [mapType, setMapType] = useState<string>("Binned");
@@ -38,6 +48,10 @@ const GraphView: React.FC = () => {
     dragmode: "pan",
   });
   const [lineColors, setLineColors] = useState<string[]>([]);
+  const [splitLap, setSplitLap] = useState<boolean>(false);
+  const [splitPoints, setSplitPoints] = useState<number[]>([]);
+  const [mapComp, setMapComp] = useState<string>("Speed");
+  const [splitNum, setSplitNum] = useState<number>(3);
 
   const setLineColor = (index: number, color: string) => {
     const newLineColors = lineColors.slice();
@@ -49,7 +63,7 @@ const GraphView: React.FC = () => {
   const mapPlot = React.useRef<HTMLElement>();
 
   const onMapHover = (eventdata: any) => {
-    if (graphInfo) {
+    if (graphInfo && eventdata.points[0].curveNumber === 0) {
       const relDist = graphInfo[0].tel.Distance[eventdata.points[0].pointNumber];
       //@ts-ignore
       Plotly.Fx.hover(
@@ -76,16 +90,27 @@ const GraphView: React.FC = () => {
       setLineColors(graphInfo.map(({ driver }) => driverColors[driver]));
       const speedDiff = getColDiff(graphInfo, "Speed");
       const absSpeedMax = Math.ceil(Math.max(...speedDiff.map((a) => Math.abs(a))));
-      setMmaxColor(absSpeedMax);
-      const time_diff = getColDiff(graphInfo, "Time");
-      const absTimeMax = Math.ceil(Math.max(...time_diff.map((a) => Math.abs(a)), 1000) / 100) / 10;
+      setMapMaxSDiff(absSpeedMax);
+      const timeDiff = getColDiff(graphInfo, "Time");
+      const absTimeMax = Math.ceil(Math.max(...timeDiff.map((a) => Math.abs(a)), 1000) / 100) / 10;
       setMmaxTDiff(absTimeMax);
     }
   }, [graphInfo]);
 
+  React.useEffect(() => {
+    if (graphInfo && mapComp === "Time") {
+      const timeDiff = getSectionTimeDiffs(graphInfo, splitPoints);
+      const absTimeMax = Math.max(...timeDiff.map((a) => Math.abs(a)));
+      setMapMaxTDiff(absTimeMax);
+    }
+  }, [graphInfo, mapComp, splitPoints]);
+
   // TODO - UI: use this instead of 30vw as the height
   const graphHeight = `${getGraphHeight(["Speed", ...otherYs])}vw`;
-
+  const onGraphClick = (eventData: any) =>
+    splitLap
+      ? setSplitPoints(sortBy(uniq([...splitPoints, eventData.points[0].pointNumber])))
+      : setGraphMarker(eventData.points[0].pointNumber);
   return (
     // TODO: show where yellow flags are based off time overlap with sectors, on lap graph show all reds/scs/etc.
     <>
@@ -102,18 +127,19 @@ const GraphView: React.FC = () => {
               graphArgs.x_axis as keyof Tel,
               showRollingGraph ? rollingGraph : undefined,
               graphMarker,
-              otherYs
+              otherYs,
+              splitPoints
             )}
             config={{ editable: true, edits: { shapePosition: false } }}
             onHover={(eventData: any) => onGraphHover(eventData)}
-            onClick={(eventData: any) => setGraphMarker(eventData.points[0].pointNumber)}
+            onClick={onGraphClick}
             // NOTE: currently, there's not an easy way to link the graph hover to the map hover
           />
         )}
       </GraphContainer>
       <GraphContainer defaultHeight={"30vw"} defaultWidth={"35vw"} loading={graphsLoading}>
         {graphInfo && maxColor && (
-          // TODO: option to plot time_diff based on x y ? -- click multiple times to create sections?
+          // TODO: option to plot map showing the biggest differences between the lines the two cars took
           <Plot
             ref={mapPlot}
             divId="mapPlot"
@@ -124,7 +150,9 @@ const GraphView: React.FC = () => {
               mapType,
               maxColor,
               showRollingMap ? rollingMap : undefined,
-              graphMarker
+              graphMarker,
+              mapComp,
+              splitPoints
             )}
             config={{ editable: true }}
             onRelayout={(eventData: any) =>
@@ -134,7 +162,7 @@ const GraphView: React.FC = () => {
               })
             }
             onHover={(eventData: any) => onMapHover(eventData)}
-            onClick={(eventData: any) => setGraphMarker(eventData.points[0].pointNumber)}
+            onClick={onGraphClick}
           />
         )}
       </GraphContainer>
@@ -175,9 +203,15 @@ const GraphView: React.FC = () => {
         </GraphOptionContainer>
         <GraphOptionContainer>
           <p style={{ color: "white" }}>
-            Current speed range: -{maxColor} to {maxColor}
+            Current {mapComp.toLowerCase()} range: -{maxColor} to {maxColor}
           </p>
-          <Slider min={1} step={1} value={maxColor} max={mmaxColor} onChange={(value) => setMaxColor(value)} />
+          <Slider
+            min={1}
+            step={1}
+            value={maxColor}
+            max={mapComp === "Speed" ? mapMaxSDiff : mapMaxTDiff}
+            onChange={(value) => setMaxColor(value)}
+          />
         </GraphOptionContainer>
         <GraphOptionContainer>
           <p style={{ color: "white" }}>Rolling Mean for Map{showRollingMap && `: ${rollingMap}`}</p>
@@ -194,6 +228,35 @@ const GraphView: React.FC = () => {
             </Radio.Button>
           </Radio.Group>
         </GraphOptionContainer>
+        <GraphOptionContainer>
+          Add marker<Switch checked={splitLap} onChange={setSplitLap}></Switch>Add split
+        </GraphOptionContainer>
+        <GraphOptionContainer>
+          <Radio.Group onChange={(e) => setMapComp(e.target.value)} value={mapComp}>
+            <Radio.Button value="Speed">Speed</Radio.Button>
+            <Radio.Button value="Time">Time</Radio.Button>
+          </Radio.Group>
+        </GraphOptionContainer>
+        <GraphOptionContainer>
+          <Button onClick={() => setSplitPoints([])}>Clear Splits</Button>
+        </GraphOptionContainer>
+        {graphInfo && (
+          <>
+            <GraphOptionContainer>
+              <InputNumber min={1} max={100} defaultValue={3} onChange={(v) => v && setSplitNum(v)} />
+              <Button onClick={() => setSplitPoints(getEqualSegmentPoints(graphInfo, splitNum))}>
+                Split into sections
+              </Button>
+            </GraphOptionContainer>
+            <GraphOptionContainer>
+              <Button
+                onClick={() => setSplitPoints(getSpeedChangePoints(graphInfo, showRollingMap ? rollingMap : undefined))}
+              >
+                Split by speed change
+              </Button>
+            </GraphOptionContainer>
+          </>
+        )}
         {
           // TODO - UI: we probably wanna replace this with a form
           graphInfo && (
