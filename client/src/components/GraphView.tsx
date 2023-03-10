@@ -101,13 +101,14 @@ const GraphView: React.FC = () => {
   React.useEffect(() => {
     if (graphInfo && mapComp === "Time") {
       const timeDiff = getSectionTimeDiffs(graphInfo, splitPoints);
-      const absTimeMax = Math.max(...timeDiff.map((a) => Math.abs(a)));
+      const absTimeMax = Math.max(...timeDiff.flat().map((a) => Math.abs(a)));
       setMapMaxTDiff(absTimeMax);
     }
   }, [graphInfo, mapComp, splitPoints]);
 
   // TODO - UI: use this instead of 30vw as the height
   const graphHeight = `${getGraphHeight(["Speed", ...otherYs])}vw`;
+  // TODO: make the split points removed when you click on them again on the map
   const onGraphClick = (eventData: any) =>
     splitLap
       ? setSplitPoints(sortBy(uniq([...splitPoints, eventData.points[0].pointNumber])))

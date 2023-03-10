@@ -1,5 +1,5 @@
 import { mix } from "color2k";
-import { getHampel, getMeanStd, groupBy, mean, rolling } from "./calc-utils";
+import { getHampel, getMeanStd, groupBy, mean, rolling, transpose } from "./calc-utils";
 
 export type Tel = {
   Date: number[];
@@ -42,16 +42,15 @@ export const getColDiff = (
   return lapTel[lap1].tel[col].map((v, i) => func(v, lapTel[lap2].tel[col][i]));
 };
 
-export const getColMaxInds = (lapTel: LapTel, col: keyof Tel) => {
+export const getColMaxInds = (columns: number[][]) => {
   let maxInds = [];
-  for (let j = 0; j < lapTel[0].tel[col].length; j++) {
+  for (let j = 0; j < columns[0].length; j++) {
     let maxInd = -1,
       maxVal = -Infinity;
-    for (let i = 0; i < lapTel.length; i++) {
-      //@ts-ignore
-      if (lapTel[i].tel[col][j] > maxVal) {
+    for (let i = 0; i < columns.length; i++) {
+      if (columns[i][j] > maxVal) {
         //@ts-ignore
-        maxVal = lapTel[i].tel[col][j];
+        maxVal = columns[i][j];
         maxInd = i;
       }
     }
@@ -75,35 +74,38 @@ export const getEqualSegmentPoints = (lapTel: LapTel, splitNum: number) => {
 };
 
 export const getSpeedChangePoints = (lapTel: LapTel, rollingK?: number) => {
-  let speedDiff;
-  speedDiff = getColMaxInds(lapTel, "Speed");
-  speedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
+  const speedDiff = getColMaxInds(lapTel.map(({ tel }) => (rollingK ? rolling(tel.Speed, rollingK, mean) : tel.Speed)));
   const points: number[] = [];
   speedDiff.reduce((p, c, i) => {
-    const nc = Math.floor(Math.min(c, 0.999) / 0.5);
-    p !== nc && points.push(i);
-    return nc;
+    p !== c && points.push(i);
+    return c;
   }, 0);
   return points;
 };
 
-export const getSectionTimeDiffs = (lapTel: LapTel, splitPoints: number[], lap1 = 0, lap2 = 1) => {
-  splitPoints = [0, ...splitPoints, lapTel[lap1].tel.Time.length - 1];
-  const lap1diffs: number[] = [];
-  const lap2diffs: number[] = [];
+export const getSectionTimeDiffs = (lapTel: LapTel, splitPoints: number[]) => {
+  splitPoints = [0, ...splitPoints, lapTel[0].tel.Time.length - 1];
+  const lapTimeDiffs: number[][] = lapTel.map(() => []);
   for (let i = 0; i < splitPoints.length - 1; i++) {
-    lap1diffs.push(lapTel[lap1].tel.Time[splitPoints[i + 1]] - lapTel[lap1].tel.Time[splitPoints[i]]);
-    lap2diffs.push(lapTel[lap2].tel.Time[splitPoints[i + 1]] - lapTel[lap2].tel.Time[splitPoints[i]]);
-  }
-  let j = 0;
-  const res = lapTel[lap1].tel.Time.map((_v, ind) => {
-    if (ind >= splitPoints[j + 1]) {
-      j++;
+    for (let j = 0; j < lapTel.length; j++) {
+      lapTimeDiffs[j].push(lapTel[j].tel.Time[splitPoints[i]] - lapTel[j].tel.Time[splitPoints[i + 1]]);
     }
-    return lap2diffs[j] - lap1diffs[j];
-  });
-  res[res.length - 1] = res[res.length - 2];
-  return res;
+  }
+  const fullLapTimeDiffs: number[][] = lapTel.map(() => []);
+  let k = 0;
+  for (let i = 0; i < lapTel[0].tel.Time.length - 1; i++) {
+    if (i > splitPoints[k + 1]) {
+      k++;
+    }
+    for (let j = 0; j < lapTel.length; j++) {
+      fullLapTimeDiffs[j].push(lapTimeDiffs[j][k]);
+    }
+  }
+  for (let j = 0; j < lapTel.length; j++) {
+    const arrLen = fullLapTimeDiffs[j].length;
+    fullLapTimeDiffs[j][arrLen - 1] = fullLapTimeDiffs[j][arrLen - 2];
+  }
+  return fullLapTimeDiffs;
 };
 
 export const getMapCompData = (
@@ -118,19 +120,23 @@ export const getMapCompData = (
   splitPoints?: number[]
 ) => {
   let speedDiff;
+  let lapTimeDiffs: number[][] = [];
   if (mapComp !== "Time") {
     if (mapType === "Actual") {
       speedDiff = getColDiff(lapTel, "Speed");
+      speedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
     } else {
-      speedDiff = getColMaxInds(lapTel, "Speed");
+      speedDiff = getColMaxInds(lapTel.map(({ tel }) => (rollingK ? rolling(tel.Speed, rollingK, mean) : tel.Speed)));
     }
-    speedDiff = rollingK ? rolling(speedDiff, rollingK, mean) : speedDiff;
-    // TODO: fix the rolling speedDiff for multiple drivers (above too)
   } else if (splitPoints) {
-    speedDiff = getSectionTimeDiffs(lapTel, splitPoints);
-    if (mapType !== "Actual") {
+    lapTimeDiffs = getSectionTimeDiffs(lapTel, splitPoints);
+    speedDiff =
+      lapTimeDiffs.length === 2 ? lapTimeDiffs[0].map((d, i) => d - lapTimeDiffs[1][i]) : getColMaxInds(lapTimeDiffs);
+    if (mapType !== "Actual" && lapTel.length === 2) {
       speedDiff = speedDiff.map((v) => -v);
     }
+    lapTimeDiffs = lapTimeDiffs.map((col) => col.map((v, i) => (v - lapTimeDiffs[0][i]) / 1000));
+    lapTimeDiffs = transpose(lapTimeDiffs);
   }
   let markerInfo = undefined;
   if (graphMarker) {
@@ -151,7 +157,7 @@ export const getMapCompData = (
         x: lapTel[0].tel.X,
         y: lapTel[0].tel.Y,
         z: lapTel[0].tel.Z,
-        text: lapTel[0].tel.RelativeDistance,
+        text: lapTimeDiffs,
         type: "scatter3d",
         mode: "line",
         marker: { opacity: 0.001 },
@@ -201,7 +207,12 @@ export const getMapCompData = (
                 }),
           },
         },
-        hoverinfo: "text",
+        hoverinfo: mapComp === "Time" ? "text" : "none",
+        hovertemplate:
+          mapComp === "Time"
+            ? lapTel.map(({ driver }, i) => `<b>${driver}</b>:\t%{text.${i}:+.3}`).join("<br>") + "<extra></extra>"
+            : undefined,
+        hoverlabel: { align: "left" },
       },
       ...(markerInfo
         ? [
