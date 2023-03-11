@@ -3,10 +3,10 @@ import React, { useContext, useState } from "react";
 
 import { css } from "@emotion/css";
 import { Button, InputNumber, Radio, Select, Slider, Switch } from "antd";
-import { get, sortBy, uniq } from "lodash";
+import { get } from "lodash";
 import Plot from "react-plotly.js";
 import { AppContext } from "../contexts/AppContext";
-import { get_best_colors } from "../utils/calc-utils";
+import { bisectLeft, get_best_colors } from "../utils/calc-utils";
 import {
   getColDiff,
   getEqualSegmentPoints,
@@ -108,11 +108,24 @@ const GraphView: React.FC = () => {
 
   // TODO - UI: use this instead of 30vw as the height
   const graphHeight = `${getGraphHeight(["Speed", ...otherYs])}vw`;
-  // TODO: make the split points removed when you click on them again on the map
-  const onGraphClick = (eventData: any) =>
-    splitLap
-      ? setSplitPoints(sortBy(uniq([...splitPoints, eventData.points[0].pointNumber])))
-      : setGraphMarker(eventData.points[0].pointNumber);
+  const onGraphClick = (eventData: any, map = false) => {
+    if (splitLap) {
+      const pointNum = eventData.points[0].pointNumber;
+      const ind = map && eventData.points[0].curveNumber === 1 ? pointNum : bisectLeft(splitPoints, pointNum);
+      console.log(pointNum);
+      console.log(ind);
+      console.log(splitPoints);
+      const newArr = splitPoints.slice();
+      if ((map && eventData.points[0].curveNumber === 1) || splitPoints[ind] === pointNum) {
+        newArr.splice(ind, 1);
+      } else {
+        newArr.splice(ind, 0, pointNum);
+      }
+      setSplitPoints(newArr);
+    } else {
+      setGraphMarker(eventData.points[0].pointNumber);
+    }
+  };
   return (
     // TODO: show where yellow flags are based off time overlap with sectors, on lap graph show all reds/scs/etc.
     <>
@@ -164,7 +177,7 @@ const GraphView: React.FC = () => {
               })
             }
             onHover={(eventData: any) => onMapHover(eventData)}
-            onClick={onGraphClick}
+            onClick={(eventData: any) => onGraphClick(eventData, true)}
           />
         )}
       </GraphContainer>

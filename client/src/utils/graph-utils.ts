@@ -214,6 +214,20 @@ export const getMapCompData = (
             : undefined,
         hoverlabel: { align: "left" },
       },
+      ...(splitInfo
+        ? [
+            {
+              x: splitInfo.X,
+              y: splitInfo.Y,
+              z: splitInfo.Z,
+              type: "scatter3d",
+              mode: "markers",
+              marker: { size: 8, color: splitColor },
+              text: splitInfo.X.map((_) => "Remove"),
+              hoverinfo: "text",
+            },
+          ]
+        : [{}]),
       ...(markerInfo
         ? [
             {
@@ -223,19 +237,6 @@ export const getMapCompData = (
               type: "scatter3d",
               mode: "markers",
               marker: { size: 8, color: markerColor },
-              hoverinfo: "none",
-            },
-          ]
-        : [{}]),
-      ...(splitInfo
-        ? [
-            {
-              x: splitInfo.X,
-              y: splitInfo.Y,
-              z: splitInfo.Z,
-              type: "scatter3d",
-              mode: "markers",
-              marker: { size: 6, color: splitColor },
               hoverinfo: "none",
             },
           ]
