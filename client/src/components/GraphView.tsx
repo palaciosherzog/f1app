@@ -89,20 +89,24 @@ const GraphView: React.FC = () => {
       }
       const driverColors = get_best_colors(graphInfo.map(({ driver }) => driver));
       setLineColors(graphInfo.map(({ driver }) => driverColors[driver]));
-      const speedDiff = getColDiff(graphInfo, "Speed");
+      const speedDiff = graphInfo.map((_, i) => getColDiff(graphInfo, "Speed", 0, i)).flat();
       const absSpeedMax = Math.ceil(Math.max(...speedDiff.map((a) => Math.abs(a))));
       setMapMaxSDiff(absSpeedMax);
-      const timeDiff = getColDiff(graphInfo, "Time");
-      const absTimeMax = Math.ceil(Math.max(...timeDiff.map((a) => Math.abs(a)), 1000) / 100) / 10;
+      setMaxColor(Math.max(maxColor, absSpeedMax));
+      const timeDiff = graphInfo.map((_, i) => getColDiff(graphInfo, "Time", 0, i)).flat();
+      const absTimeMax = Math.ceil(Math.max(...timeDiff.map((a) => Math.abs(isNaN(a) ? 0 : a)), 1000) / 100) / 10;
       setMmaxTDiff(absTimeMax);
+      setMaxTDiff(Math.max(maxTDiff, absTimeMax));
     }
   }, [graphInfo]);
 
   React.useEffect(() => {
     if (graphInfo && mapComp === "Time") {
-      const timeDiff = getSectionTimeDiffs(graphInfo, splitPoints);
-      const absTimeMax = Math.max(...timeDiff.flat().map((a) => Math.abs(a)));
+      let timeDiff = getSectionTimeDiffs(graphInfo, splitPoints);
+      timeDiff = timeDiff.map((row, i) => row.map((v) => timeDiff[i][0] - v));
+      const absTimeMax = Math.max(...timeDiff.flat().map((a) => Math.abs(isNaN(a) ? 0 : a)));
       setMapMaxTDiff(absTimeMax);
+      setMaxColor(Math.max(maxColor, absTimeMax));
     }
   }, [graphInfo, mapComp, splitPoints]);
 
@@ -112,9 +116,6 @@ const GraphView: React.FC = () => {
     if (splitLap) {
       const pointNum = eventData.points[0].pointNumber;
       const ind = map && eventData.points[0].curveNumber === 1 ? pointNum : bisectLeft(splitPoints, pointNum);
-      console.log(pointNum);
-      console.log(ind);
-      console.log(splitPoints);
       const newArr = splitPoints.slice();
       if ((map && eventData.points[0].curveNumber === 1) || splitPoints[ind] === pointNum) {
         newArr.splice(ind, 1);
@@ -219,9 +220,13 @@ const GraphView: React.FC = () => {
           <Button onClick={() => setGraphMarker(undefined)}>Clear Marker</Button>
         </GraphOptionContainer>
         <GraphOptionContainer>
-          <p>
-            Current {mapComp.toLowerCase()} range: -{maxColor} to {maxColor}
-          </p>
+          {mapType === "Binned" ? (
+            <p>Mix colors if within {maxColor / 1000}s</p>
+          ) : (
+            <p>
+              Current {mapComp.toLowerCase()} range: -{maxColor / 1000} to {maxColor / 1000}
+            </p>
+          )}
           <Slider
             min={1}
             step={1}

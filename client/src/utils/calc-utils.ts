@@ -1,4 +1,4 @@
-import { adjustHue, parseToHsla } from "color2k";
+import { adjustHue, mix, parseToHsla } from "color2k";
 
 export const mean = (arr: number[]) => arr.reduce((prev, cur) => prev + cur, 0) / arr.length;
 
@@ -202,4 +202,72 @@ export const bisectLeft = (arr: number[], value: number, lo = 0, hi = arr.length
     }
   }
   return lo;
+};
+
+export const mixColors = (colors: string[]): string => {
+  if (colors.length === 0) {
+    return "#FFF";
+  }
+  if (colors.length === 1) {
+    return colors[0];
+  }
+  let cnt = 2;
+  let color = mix(colors[0], colors[1], 1 / cnt);
+  colors.slice(2).forEach((c) => {
+    cnt += 1;
+    color = mix(color, c, 1 / cnt);
+  });
+  return color;
+};
+
+export const expandData = (inds: number[], data: any[]) => {
+  if (data.length !== inds.length - 1) {
+    console.error(
+      `Index list must be 1 greater than data length.\n\tIndex length: ${inds.length}\n\tData length: ${data.length}`
+    );
+    return [];
+  }
+  const maxInd = inds.slice(-1)[0];
+  const res = [];
+  let k = 0;
+  for (let i = 0; i < maxInd; i++) {
+    if (i > inds[k]) k++;
+    res.push(data[k - 1]);
+  }
+  res.push(res.slice(-1)[0]);
+  return res;
+};
+
+export const getColMaxInds = (columns: number[][]) => {
+  let maxInds = [];
+  for (let j = 0; j < columns[0].length; j++) {
+    let maxInd = -1,
+      maxVal = -Infinity;
+    for (let i = 0; i < columns.length; i++) {
+      if (columns[i][j] > maxVal) {
+        //@ts-ignore
+        maxVal = columns[i][j];
+        maxInd = i;
+      }
+    }
+    maxInds.push(maxInd);
+  }
+  return maxInds;
+};
+
+export const getRowMaxInds = (rows: number[][]) => {
+  let maxInds = [];
+  for (let i = 0; i < rows.length; i++) {
+    let maxInd = -1,
+      maxVal = -Infinity;
+    for (let j = 0; j < rows[0].length; j++) {
+      if (rows[i][j] > maxVal) {
+        //@ts-ignore
+        maxVal = rows[i][j];
+        maxInd = j;
+      }
+    }
+    maxInds.push(maxInd);
+  }
+  return maxInds;
 };

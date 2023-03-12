@@ -1,5 +1,14 @@
-import { mix } from "color2k";
-import { getHampel, getMeanStd, groupBy, mean, rolling, transpose } from "./calc-utils";
+import {
+  expandData,
+  getColMaxInds,
+  getHampel,
+  getMeanStd,
+  getRowMaxInds,
+  groupBy,
+  mean,
+  mixColors,
+  rolling,
+} from "./calc-utils";
 
 export type Tel = {
   Date: number[];
@@ -42,23 +51,6 @@ export const getColDiff = (
   return lapTel[lap1].tel[col].map((v, i) => func(v, lapTel[lap2].tel[col][i]));
 };
 
-export const getColMaxInds = (columns: number[][]) => {
-  let maxInds = [];
-  for (let j = 0; j < columns[0].length; j++) {
-    let maxInd = -1,
-      maxVal = -Infinity;
-    for (let i = 0; i < columns.length; i++) {
-      if (columns[i][j] > maxVal) {
-        //@ts-ignore
-        maxVal = columns[i][j];
-        maxInd = i;
-      }
-    }
-    maxInds.push(maxInd);
-  }
-  return maxInds;
-};
-
 export const getEqualSegmentPoints = (lapTel: LapTel, splitNum: number) => {
   const distances = lapTel[0].tel.Distance;
   const segmentLength = distances[distances.length - 1] / splitNum;
@@ -84,28 +76,27 @@ export const getSpeedChangePoints = (lapTel: LapTel, rollingK?: number) => {
 };
 
 export const getSectionTimeDiffs = (lapTel: LapTel, splitPoints: number[]) => {
-  splitPoints = [0, ...splitPoints, lapTel[0].tel.Time.length - 1];
-  const lapTimeDiffs: number[][] = lapTel.map(() => []);
+  const lapTimeDiffs: number[][] = [];
   for (let i = 0; i < splitPoints.length - 1; i++) {
+    const timeDiffsRow = [];
     for (let j = 0; j < lapTel.length; j++) {
-      lapTimeDiffs[j].push(lapTel[j].tel.Time[splitPoints[i]] - lapTel[j].tel.Time[splitPoints[i + 1]]);
+      timeDiffsRow.push(lapTel[j].tel.Time[splitPoints[i]] - lapTel[j].tel.Time[splitPoints[i + 1]]);
     }
+    lapTimeDiffs.push(timeDiffsRow);
   }
-  const fullLapTimeDiffs: number[][] = lapTel.map(() => []);
-  let k = 0;
-  for (let i = 0; i < lapTel[0].tel.Time.length - 1; i++) {
-    if (i > splitPoints[k + 1]) {
-      k++;
-    }
-    for (let j = 0; j < lapTel.length; j++) {
-      fullLapTimeDiffs[j].push(lapTimeDiffs[j][k]);
-    }
-  }
-  for (let j = 0; j < lapTel.length; j++) {
-    const arrLen = fullLapTimeDiffs[j].length;
-    fullLapTimeDiffs[j][arrLen - 1] = fullLapTimeDiffs[j][arrLen - 2];
-  }
-  return fullLapTimeDiffs;
+  return lapTimeDiffs;
+};
+
+const getColorsFromTimeDiffs = (timeDiffs: number[][], maxInds: number[], colors: string[], mixLimit: number) => {
+  return timeDiffs.map((tds, i) => {
+    const colorsInLimit: string[] = [];
+    tds.forEach((td, ind) => {
+      if (timeDiffs[i][maxInds[i]] - td < mixLimit) {
+        colorsInLimit.push(colors[ind]);
+      }
+    });
+    return mixColors(colorsInLimit);
+  });
 };
 
 export const getMapCompData = (
@@ -128,15 +119,19 @@ export const getMapCompData = (
     } else {
       speedDiff = getColMaxInds(lapTel.map(({ tel }) => (rollingK ? rolling(tel.Speed, rollingK, mean) : tel.Speed)));
     }
-  } else if (splitPoints) {
-    lapTimeDiffs = getSectionTimeDiffs(lapTel, splitPoints);
+  } else {
+    const newSplitPoints = [0, ...(splitPoints || []), lapTel[0].tel.Time.length - 1];
+    lapTimeDiffs = getSectionTimeDiffs(lapTel, newSplitPoints);
     speedDiff =
-      lapTimeDiffs.length === 2 ? lapTimeDiffs[0].map((d, i) => d - lapTimeDiffs[1][i]) : getColMaxInds(lapTimeDiffs);
-    if (mapType !== "Actual" && lapTel.length === 2) {
-      speedDiff = speedDiff.map((v) => -v);
+      lapTimeDiffs.length === 2 && mapType === "Actual"
+        ? lapTimeDiffs[0].map((d, i) => d - lapTimeDiffs[1][i])
+        : getRowMaxInds(lapTimeDiffs);
+    if (maxColor) {
+      speedDiff = getColorsFromTimeDiffs(lapTimeDiffs, speedDiff, lapColors, maxColor);
     }
-    lapTimeDiffs = lapTimeDiffs.map((col) => col.map((v, i) => (v - lapTimeDiffs[0][i]) / 1000));
-    lapTimeDiffs = transpose(lapTimeDiffs);
+    speedDiff = expandData(newSplitPoints, speedDiff);
+    lapTimeDiffs = lapTimeDiffs.map((row, i) => row.map((v) => (lapTimeDiffs[i][0] - v) / 1000));
+    lapTimeDiffs = expandData(newSplitPoints, lapTimeDiffs);
   }
   let markerInfo = undefined;
   if (graphMarker) {
@@ -304,7 +299,7 @@ export const getGraphCompData = (
   otherys?: boolean | string[],
   splitPoints?: number[]
 ) => {
-  let timeDiffs = lapTel.slice(1).map((_, i) => getColDiff(lapTel, "Time", 0, i + 1, (a, b) => (a - b) / 1000));
+  let timeDiffs = lapTel.slice(1).map((_, i) => getColDiff(lapTel, "Time", 0, i + 1, (a, b) => (b - a) / 1000));
   if (graphMarker) {
     timeDiffs = timeDiffs.map((timeDiff) => {
       const diffTo0 = timeDiff[graphMarker];
@@ -361,8 +356,8 @@ export const getGraphCompData = (
     mode: "lines",
     yaxis: timeAxis,
     line: {
-      color: lapColors[i + 1] && (separateTime >= 0 ? lapColors[i + 1] : mix(lapColors[i + 1], "white", 0.6)),
-      dash: separateTime < 0 ? "dash" : undefined,
+      color: lapColors[i + 1],
+      dash: separateTime < 0 ? "dot" : undefined,
     },
     name:
       separateTime >= 0
@@ -404,7 +399,7 @@ export const getGraphCompData = (
               zerolinecolor: "#999",
               gridcolor: "#444",
               color: "#fff",
-              range: [-maxTDiff, maxTDiff],
+              range: [maxTDiff, -maxTDiff],
             },
           }
         : {}),

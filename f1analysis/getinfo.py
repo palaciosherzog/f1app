@@ -65,7 +65,7 @@ def main(func_type, json_args):
                 resampled_driver_tel, sector_dists = resample_2_by_sector(
                     driver_laps[0], driver_laps[1], driver_tel[0], driver_tel[1], x_axis=x_ax, return_dists=True)
             else:
-                resampled_driver_tel, sector_dists = resample_all_by_dist(
+                resampled_driver_tel, sector_dists = resample_all_by_sector(
                     driver_laps, driver_tel, x_axis=x_ax, return_dists=True)
         else:
             if len(driver_tel) == 2:

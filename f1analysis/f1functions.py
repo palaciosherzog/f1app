@@ -1351,6 +1351,7 @@ def resample_all_by_dist(lap_datas, x_axis='Distance'):
     # For this function, we'll just sample every other lap off of the first lap that was passed
     ref_dists = lap_datas[0][[x_axis]].drop_duplicates().copy(deep=True)
     ref_dists['Time'] = pd.NA
+    dists_index = pd.Index(ref_dists[x_axis])
 
     new_dates = []
     for i in range(1, len(lap_datas)):
@@ -1358,10 +1359,12 @@ def resample_all_by_dist(lap_datas, x_axis='Distance'):
             x_axis).sort_index()
         new_times = interpolate_times(
             dist_times.Time).bfill().loc[ref_dists[x_axis]].drop_duplicates()
+        dists_index = dists_index.intersection(new_times.index)
         new_dates.append(lap_datas[i]['Date'].iloc[0] + new_times)
 
-    return [lap_datas[0]] + [lap_datas[i].resample_channels(new_date_ref=new_dates[i-1]).reset_index(drop=True)
-                             for i in range(1, len(lap_datas))]
+    return ([lap_datas[0].set_index(x_axis).loc[dists_index].reset_index()] +
+            [lap_datas[i].resample_channels(new_date_ref=new_dates[i-1].loc[dists_index]).reset_index(drop=True)
+             for i in range(1, len(lap_datas))])
 
 
 def resample_2_by_sector(lap1, lap2, lap1data=None, lap2data=None, x_axis='Distance', return_dists=False):
