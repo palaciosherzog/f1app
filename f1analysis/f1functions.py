@@ -1441,4 +1441,4 @@ def resample_all_by_sector(laps, lapsdata=None, x_axis='Distance', return_dists=
 def get_lap(session, driver, lap_num):
     if lap_num == "-1":
         return session.laps.pick_driver(driver).pick_fastest()
-    return session.laps[(session.laps.Driver == driver) & (session.laps.LapNumber == int(lap_num))].iloc[0]
+    return session.laps[(session.laps.Driver == driver) & (session.laps.LapNumber == int(lap_num))]

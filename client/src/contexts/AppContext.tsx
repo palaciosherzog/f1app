@@ -8,7 +8,7 @@ type YearInfo = {
 
 export type LapLabels = { title: string; colors: { [_l: number]: string }; labels: { [_l: number]: string } };
 
-interface LapSelectOption {
+export interface LapSelectOption {
   value: string;
   title: string;
   children?: LapSelectOption[];
@@ -48,7 +48,7 @@ export const AppContext = React.createContext<AppContextType>({} as AppContextTy
 export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const [yearInfo, setYearInfo] = useState<YearInfo | undefined>();
   const [lapInfo, setLapInfo] = useState<DriverLaps | undefined>();
-  const [graphArgs, setGraphArgs] = useState<GraphArgs>({ x_axis: "Distance", use_acc: false });
+  const [graphArgs, setGraphArgs] = useState<GraphArgs>({ x_axis: "Distance", use_acc: false, comb_laps: {} });
   const [graphInfo, setGraphInfo] = useState<LapTel | undefined>();
   const [sectorDists, setSectorDists] = useState<number[] | undefined>();
   const [sessionInfo, setSessionInfo] = useState<SessionId>({ year: "", session: "", round: "" });
@@ -86,7 +86,7 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
           title: driver,
           value: driver,
           children: ls.laps.LapNumber.map((ln: number, i: number) => ({
-            title: `Lap ${ln} [${ls.laps.LapTime[i]}]`,
+            title: `Lap ${ln} [${ls.laps.LapTime[i]}]`, //${ls.laps.PersonalBest ?''}
             value: `${driver}-${ln}`,
           })),
         }))

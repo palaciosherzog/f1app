@@ -2,17 +2,33 @@ import { css } from "@emotion/css";
 import React, { useContext } from "react";
 
 import { Tag, TreeSelect } from "antd";
-import { AppContext } from "../contexts/AppContext";
+import { AppContext, LapSelectOption } from "../contexts/AppContext";
 
 type LapSelectorProps = {
   value: string[];
   onChange: (_v: string[]) => void;
+  combLaps?: { [_key: string]: string[][] };
 };
 
-const LapSelector: React.FC<LapSelectorProps> = ({ value, onChange }) => {
+const LapSelector: React.FC<LapSelectorProps> = ({ value, onChange, combLaps }) => {
   const {
     state: { lapsList },
   } = useContext(AppContext);
+
+  const [extraLaps, setExtraLaps] = React.useState<LapSelectOption>({ title: "COMB", value: "COMB" });
+
+  React.useEffect(() => {
+    if (combLaps) {
+      setExtraLaps({
+        title: "COMB",
+        value: "COMB",
+        children: Object.entries(combLaps).map(([ln, laps]) => ({
+          title: `Lap ${ln}: ${JSON.stringify(laps)}`,
+          value: ln,
+        })),
+      });
+    }
+  }, [combLaps]);
 
   return (
     <TreeSelect
@@ -21,7 +37,7 @@ const LapSelector: React.FC<LapSelectorProps> = ({ value, onChange }) => {
         width: 100%;
       `}
       multiple
-      treeData={lapsList}
+      treeData={[...(lapsList ?? []), extraLaps]}
       onChange={(v: string[]) => (v.at(-1) ?? "-").includes("-") && onChange(v)}
       maxTagCount="responsive"
       placeholder="Select Laps to Compare"

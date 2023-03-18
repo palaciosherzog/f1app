@@ -17,6 +17,7 @@ export type SessionId = {
 export type GraphArgs = {
   use_acc: boolean;
   x_axis: string;
+  comb_laps: { [_key: string]: string[][] };
 };
 
 export const getRaceData = async (year: string | number): Promise<string> => {

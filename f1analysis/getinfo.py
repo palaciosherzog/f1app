@@ -53,22 +53,29 @@ def main(func_type, json_args):
     if func_type == 'comp':
         year, round, session, laps, func_args = arg_dict['year'], arg_dict[
             'round'], arg_dict['session'], arg_dict['laps'], arg_dict['args']
-        x_ax, by_sector = func_args['x_axis'], func_args['use_acc']
+        x_ax, by_sector, comb_laps = func_args['x_axis'], func_args['use_acc'], func_args['comb_laps']
         session = fastf1.get_session(
             int(year), round if not round.isdigit() else int(round), session) if round != "0" else fastf1.get_testing_session(int(year), 1, int(''.join(c for c in session if c.isdigit())))
         session.load(weather=False, messages=False)
         sector_dists = None
-        driver_laps = [get_lap(session, l[0], l[1]) for l in laps]
-        driver_tel = [lap.get_telemetry() for lap in driver_laps]
+        comb_lap_dfs = {}
+        for l in laps:
+            if l[0] == 'COMB':
+                comb_lap_dfs[l[1]] = pd.concat(
+                    [get_lap(session, lap[0], lap[1]) for lap in comb_laps[f"COMB-{l[1]}"]], ignore_index=True)
+        driver_laps = [get_lap(session, l[0], l[1]).iloc[0] if l[0] != 'COMB' else average_lap(
+            comb_lap_dfs[l[1]]) for l in laps]
+        driver_tel = [lap.get_telemetry() if lap[0] != 'COMB' else average_lap_tel(
+            get_lap_data(comb_lap_dfs[lap[1]], which="tel")) for lap in driver_laps]
         if by_sector:
-            if len(driver_tel) == 2:
+            if len(driver_tel) == 2 and not comb_lap_dfs:
                 resampled_driver_tel, sector_dists = resample_2_by_sector(
                     driver_laps[0], driver_laps[1], driver_tel[0], driver_tel[1], x_axis=x_ax, return_dists=True)
             else:
                 resampled_driver_tel, sector_dists = resample_all_by_sector(
                     driver_laps, driver_tel, x_axis=x_ax, return_dists=True)
         else:
-            if len(driver_tel) == 2:
+            if len(driver_tel) == 2 and not comb_lap_dfs:
                 resampled_driver_tel = resample_2_by_dist(
                     driver_tel[0], driver_tel[1], x_axis=x_ax)
             else:

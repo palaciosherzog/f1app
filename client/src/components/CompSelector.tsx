@@ -22,13 +22,29 @@ const DriverSelector = () => {
 
   const [useAcc, setUseAcc] = React.useState<boolean>(false);
   const [xAxis, setXAxis] = React.useState<string>("Distance");
+  const [laps, setLaps] = React.useState<string[]>([]);
+  const [combLapsCount, setCombLapsCount] = React.useState<number>(1);
+  const [combLaps, setCombLaps] = React.useState<{ [_key: string]: string[][] }>({});
 
-  // TODO: should add an option to compare averages of a bunch of laps --> need to make python function more fault tolerant before implementing
   return (
     <>
       <SelectorContainer>
         <Div flex={1} mx="5px">
-          <LapSelector value={compLaps} onChange={setCompLaps} />
+          <LapSelector value={laps} onChange={setLaps} />
+        </Div>
+        <Button
+          onClick={() => {
+            setCombLaps({ ...combLaps, [`COMB-${combLapsCount}`]: laps.map((l) => l.split("-")) });
+            setCombLapsCount(combLapsCount + 1);
+            setLaps([]);
+          }}
+        >
+          Create Average Lap
+        </Button>
+      </SelectorContainer>
+      <SelectorContainer>
+        <Div flex={1} mx="5px">
+          <LapSelector value={compLaps} onChange={setCompLaps} combLaps={combLaps} />
         </Div>
         <Div mt="5px" mx="5px">
           <Checkbox
@@ -47,7 +63,7 @@ const DriverSelector = () => {
             <Radio.Button value="RelativeDistance">Relative</Radio.Button>
           </Radio.Group>
         </Div>
-        <Button onClick={() => getGraphsInfo({ use_acc: useAcc, x_axis: xAxis })}>Submit</Button>
+        <Button onClick={() => getGraphsInfo({ use_acc: useAcc, x_axis: xAxis, comb_laps: combLaps })}>Submit</Button>
       </SelectorContainer>
     </>
   );
