@@ -92,11 +92,11 @@ const GraphView: React.FC = () => {
       const speedDiff = graphInfo.map((_, i) => getColDiff(graphInfo, "Speed", 0, i)).flat();
       const absSpeedMax = Math.ceil(Math.max(...speedDiff.map((a) => Math.abs(a))));
       setMapMaxSDiff(absSpeedMax);
-      setMaxColor(Math.max(maxColor, absSpeedMax));
+      mapComp === "Speed" && setMaxColor(Math.min(maxColor, absSpeedMax));
       const timeDiff = graphInfo.map((_, i) => getColDiff(graphInfo, "Time", 0, i)).flat();
       const absTimeMax = Math.ceil(Math.max(...timeDiff.map((a) => Math.abs(isNaN(a) ? 0 : a)), 1000) / 100) / 10;
       setMmaxTDiff(absTimeMax);
-      setMaxTDiff(Math.max(maxTDiff, absTimeMax));
+      setMaxTDiff(Math.min(maxTDiff, absTimeMax));
     }
   }, [graphInfo]);
 
@@ -106,7 +106,7 @@ const GraphView: React.FC = () => {
       timeDiff = timeDiff.map((row, i) => row.map((v) => timeDiff[i][0] - v));
       const absTimeMax = Math.max(...timeDiff.flat().map((a) => Math.abs(isNaN(a) ? 0 : a)));
       setMapMaxTDiff(absTimeMax);
-      setMaxColor(Math.max(maxColor, absTimeMax));
+      mapComp === "Time" && setMaxColor(Math.min(maxColor, absTimeMax));
     }
   }, [graphInfo, mapComp, splitPoints]);
 
@@ -131,7 +131,7 @@ const GraphView: React.FC = () => {
     // TODO: show where yellow flags are based off time overlap with sectors, on lap graph show all reds/scs/etc.
     <>
       <GraphContainer defaultHeight={"30vw"} defaultWidth={"55vw"} loading={graphsLoading}>
-        {graphInfo && (
+        {graphInfo && lineColors.length === graphInfo.length && (
           <Plot
             ref={graphPlot}
             divId="graphPlot"
@@ -154,8 +154,9 @@ const GraphView: React.FC = () => {
         )}
       </GraphContainer>
       <GraphContainer defaultHeight={"30vw"} defaultWidth={"35vw"} loading={graphsLoading}>
-        {graphInfo && maxColor && (
+        {graphInfo && lineColors.length === graphInfo.length && (
           // TODO: option to plot map showing the biggest differences between the lines the two cars took
+          // TODO: option to plot time difference as 3d stacked line graph, showing time diff
           <Plot
             ref={mapPlot}
             divId="mapPlot"

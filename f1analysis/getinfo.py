@@ -6,7 +6,7 @@ import sys
 import fastf1
 from f1functions import *
 
-logging.getLogger(fastf1.__name__).setLevel(logging.CRITICAL)
+logging.getLogger().setLevel(logging.WARN)
 
 # this has to be pointing to the file from the relative path of where it was run, so f1analysis
 fastf1.Cache.enable_cache('../f1analysis/cache')
@@ -68,19 +68,19 @@ def main(func_type, json_args):
         driver_tel = [lap.get_telemetry() if lap[0] != 'COMB' else average_lap_tel(
             get_lap_data(comb_lap_dfs[lap[1]], which="tel")) for lap in driver_laps]
         if by_sector:
-            if len(driver_tel) == 2 and not comb_lap_dfs:
-                resampled_driver_tel, sector_dists = resample_2_by_sector(
-                    driver_laps[0], driver_laps[1], driver_tel[0], driver_tel[1], x_axis=x_ax, return_dists=True)
-            else:
-                resampled_driver_tel, sector_dists = resample_all_by_sector(
-                    driver_laps, driver_tel, x_axis=x_ax, return_dists=True)
+            # if len(driver_tel) == 2 and not comb_lap_dfs:
+            #     resampled_driver_tel, sector_dists = resample_2_by_sector(
+            #         driver_laps[0], driver_laps[1], driver_tel[0], driver_tel[1], x_axis=x_ax, return_dists=True)
+            # else:
+            resampled_driver_tel, sector_dists = resample_all_by_sector(
+                driver_laps, driver_tel, x_axis=x_ax, return_dists=True)
         else:
-            if len(driver_tel) == 2 and not comb_lap_dfs:
-                resampled_driver_tel = resample_2_by_dist(
-                    driver_tel[0], driver_tel[1], x_axis=x_ax)
-            else:
-                resampled_driver_tel = resample_all_by_dist(
-                    driver_tel, x_axis=x_ax)
+            # if len(driver_tel) == 2 and not comb_lap_dfs:
+            #     resampled_driver_tel = resample_2_by_dist(
+            #         driver_tel[0], driver_tel[1], x_axis=x_ax)
+            # else:
+            resampled_driver_tel = resample_all_by_dist(
+                driver_tel, x_axis=x_ax)
         return_info = {
             "laptel": [
                 {

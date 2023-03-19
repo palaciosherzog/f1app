@@ -410,12 +410,12 @@ export const getGraphCompData = (
       hovermode: "x",
       shapes: [
         ...(sectorDists || []).map((d) => ({ d: d, line: { color: "#777" } })),
-        ...(graphMarker ? [lapTel[0].tel.Distance[graphMarker]] : []).map((d) => ({
+        ...(graphMarker ? [lapTel[0].tel[xColumn][graphMarker]] : []).map((d) => ({
           d: d,
           line: { color: markerColor, dash: "dash" },
         })),
         ,
-        ...(splitPoints ? splitPoints.map((i) => lapTel[0].tel.Distance[i]) : []).map((d) => ({
+        ...(splitPoints ? splitPoints.map((i) => lapTel[0].tel[xColumn][i]) : []).map((d) => ({
           d: d,
           line: { color: splitColor, dash: "dash" },
         })),

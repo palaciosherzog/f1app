@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import express, { Express, Request, Response } from "express";
 import { getScriptOutput } from "./getScriptOutput";
 
+// TODO: we should just make this a python server, so that the sessions don't need to be loaded again
+
 // logger.js
 const pino = require("pino");
 

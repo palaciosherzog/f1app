@@ -1,8 +1,10 @@
+import { css } from "@emotion/css";
+import { Collapse } from "antd";
 import React, { useEffect, useState } from "react";
 import { getCompData, getLapData, getRaceData, GraphArgs, SessionId } from "../utils/data-utils";
 import { DriverLaps, LapTel } from "../utils/graph-utils";
 
-type YearInfo = {
+export type YearInfo = {
   [rn: string]: { EventName: number; Sessions: string[] };
 };
 
@@ -16,6 +18,7 @@ export interface LapSelectOption {
 
 export type AppContextType = {
   state: {
+    errorInfo: React.ReactNode | undefined;
     yearInfo: YearInfo | undefined;
     lapInfo: DriverLaps | undefined;
     graphInfo: LapTel | undefined;
@@ -30,6 +33,7 @@ export type AppContextType = {
     lapsList: LapSelectOption[] | undefined;
   };
   actions: {
+    setErrorInfo: (_arg: React.ReactNode | undefined) => void;
     getYearInfo: () => void;
     getLapInfo: () => void;
     getGraphsInfo: (_graphArgs: GraphArgs) => void;
@@ -46,6 +50,7 @@ type AppContextProps = {
 export const AppContext = React.createContext<AppContextType>({} as AppContextType);
 
 export const AppContextProvider: React.FC<AppContextProps> = (props) => {
+  const [errorInfo, setErrorInfo] = useState<React.ReactNode | undefined>();
   const [yearInfo, setYearInfo] = useState<YearInfo | undefined>();
   const [lapInfo, setLapInfo] = useState<DriverLaps | undefined>();
   const [graphArgs, setGraphArgs] = useState<GraphArgs>({ x_axis: "Distance", use_acc: false, comb_laps: {} });
@@ -68,11 +73,29 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
     }
   }, [sessionInfo]);
 
+  const setFormattedError = (errorString: string) => {
+    setErrorInfo(
+      <>
+        <p>There was an error getting the graph comparison information.</p>
+        <Collapse>
+          <Collapse.Panel header="What we got back" key="1">
+            <p
+              className={css`
+                white-space: pre-wrap;
+              `}
+            >
+              {errorString}
+            </p>
+          </Collapse.Panel>
+        </Collapse>
+      </>
+    );
+  };
+
   const getYearInfo = async () => {
     setSessionsLoading(true);
     if (sessionInfo.year) {
-      const data = await getRaceData(sessionInfo.year);
-      setYearInfo(JSON.parse(data));
+      setYearInfo(await getRaceData(sessionInfo.year, setFormattedError));
     }
     setSessionsLoading(false);
   };
@@ -80,16 +103,17 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const getLapInfo = async () => {
     setLapsLoading(true);
     if (sessionInfo.year && sessionInfo.round && sessionInfo.session) {
-      const data: DriverLaps = JSON.parse(await getLapData(sessionInfo));
+      const data = await getLapData(sessionInfo, setFormattedError);
       setLapsList(
-        Object.entries(data).map(([driver, ls]) => ({
-          title: driver,
-          value: driver,
-          children: ls.laps.LapNumber.map((ln: number, i: number) => ({
-            title: `Lap ${ln} [${ls.laps.LapTime[i]}]`, //${ls.laps.PersonalBest ?''}
-            value: `${driver}-${ln}`,
-          })),
-        }))
+        data &&
+          Object.entries(data).map(([driver, ls]) => ({
+            title: driver,
+            value: driver,
+            children: ls.laps.LapNumber.map((ln: number, i: number) => ({
+              title: `Lap ${ln} [${ls.laps.LapTime[i]}]`, //${ls.laps.PersonalBest ?''}
+              value: `${driver}-${ln}`,
+            })),
+          }))
       );
       setLapInfo(data);
     }
@@ -99,17 +123,17 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
   const getGraphsInfo = async (args: GraphArgs) => {
     setGraphsLoading(true);
     if (sessionInfo.year && sessionInfo.round && sessionInfo.session && compLaps.length >= 2) {
-      const compInfo = await getCompData(sessionInfo, compLaps, args);
-      const res = JSON.parse(compInfo);
+      const compInfo = await getCompData(sessionInfo, compLaps, args, setFormattedError);
       setGraphArgs(args);
-      setGraphInfo(res.laptel);
-      setSectorDists(res.sectorDists);
+      setGraphInfo(compInfo.laptel);
+      setSectorDists(compInfo.sectorDists);
     }
     setGraphsLoading(false);
   };
 
   const context = {
     state: {
+      errorInfo,
       yearInfo,
       lapInfo,
       graphInfo,
@@ -124,6 +148,7 @@ export const AppContextProvider: React.FC<AppContextProps> = (props) => {
       lapsList,
     },
     actions: {
+      setErrorInfo,
       getYearInfo,
       getLapInfo,
       getGraphsInfo,

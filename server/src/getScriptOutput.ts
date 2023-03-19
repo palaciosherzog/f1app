@@ -17,6 +17,7 @@ export const getScriptOutput = async (args: (String | number)[], logger: any, en
   // call appropriate function based on success or failure
   subprocess.stderr.on("data", (data: object) => {
     hadError = true;
+    dataString += data.toString();
     logger.error(`Error while running "${args[0]}":\n${data.toString()}`);
   });
   subprocess.on("exit", () => {

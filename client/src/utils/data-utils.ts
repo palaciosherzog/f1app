@@ -1,7 +1,9 @@
 import axios from "axios";
+import { YearInfo } from "../contexts/AppContext";
+import { DriverLaps, LapTel } from "./graph-utils";
 import { compData, lapData, multiCompData, raceData } from "./test-data";
 
-const USE_TEST_DATA = true;
+const USE_TEST_DATA = false;
 const apiClient = axios.create({
   baseURL: "http://localhost:8000",
   headers: {
@@ -20,30 +22,49 @@ export type GraphArgs = {
   comb_laps: { [_key: string]: string[][] };
 };
 
-export const getRaceData = async (year: string | number): Promise<string> => {
+export const getRaceData = async (
+  year: string | number,
+  onError?: (_s: string) => void
+): Promise<YearInfo | undefined> => {
   if (USE_TEST_DATA) {
     return new Promise((resolve) => {
-      resolve(raceData);
+      resolve(JSON.parse(raceData));
     });
   }
   const res = await apiClient.post("/races", { year: year });
-  return JSON.stringify(res.data);
+  if (typeof res.data !== "object") {
+    onError && onError(res.data);
+    return undefined;
+  }
+  return res.data;
 };
 
-export const getLapData = async (reqData: SessionId): Promise<string> => {
+export const getLapData = async (
+  reqData: SessionId,
+  onError?: (_s: string) => void
+): Promise<DriverLaps | undefined> => {
   if (USE_TEST_DATA) {
     return new Promise((resolve) => {
-      resolve(lapData);
+      resolve(JSON.parse(lapData));
     });
   }
   const res = await apiClient.post("/laps", reqData);
-  return JSON.stringify(res.data);
+  if (typeof res.data !== "object") {
+    onError && onError(res.data);
+    return undefined;
+  }
+  return res.data;
 };
 
-export const getCompData = async (session: SessionId, laps: string[], graphArgs: GraphArgs): Promise<string> => {
+export const getCompData = async (
+  session: SessionId,
+  laps: string[],
+  graphArgs: GraphArgs,
+  onError?: (_s: string) => void
+): Promise<{ laptel: LapTel | undefined; sectorDists?: number[] }> => {
   if (USE_TEST_DATA) {
     return new Promise((resolve) => {
-      laps.length !== 2 ? resolve(multiCompData) : resolve(compData);
+      laps.length !== 2 ? resolve(JSON.parse(multiCompData)) : resolve(JSON.parse(compData));
     });
   }
   const newLaps = laps.map((l) => l.split("-"));
@@ -52,5 +73,9 @@ export const getCompData = async (session: SessionId, laps: string[], graphArgs:
     laps: newLaps,
     args: graphArgs,
   });
-  return JSON.stringify(res.data);
+  if (!res?.data?.laptel) {
+    onError && onError(res.data);
+    return { laptel: undefined };
+  }
+  return res.data;
 };
