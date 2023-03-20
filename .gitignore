@@ -1,5 +1,5 @@
 node_modules
 
 /f1analysis/*
-!/f1analysis/getinfo.py
+!/f1analysis/app.py
 !/f1analysis/f1functions.py

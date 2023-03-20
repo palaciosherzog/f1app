@@ -5,7 +5,8 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "cd ../f1analysis && \"./.venv/Scripts/python.exe\" -m flask run -h localhost -p 8000"
   },
   "dependencies": {
     "@emotion/css": "^11.10.5",
